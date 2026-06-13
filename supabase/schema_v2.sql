@@ -293,6 +293,12 @@ do $$ begin
   create policy "self profile"            on public.profiles      for all    to authenticated using (auth.uid() = id) with check (auth.uid() = id);
 exception when duplicate_object then null; end $$;
 
+-- Storage: usuarios autenticados pueden descargar del bucket privado `resultados`.
+do $$ begin
+  create policy "auth read resultados" on storage.objects
+    for select to authenticated using (bucket_id = 'resultados');
+exception when duplicate_object then null; end $$;
+
 -- ============================================================================
 -- SEED mínimo de catálogo (idempotente) — clientes y áreas de ejemplo.
 -- Las claves de área ('it','maximos') las usa el worker y la CLI (--area it).

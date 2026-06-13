@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+
+import { createClient } from "@/lib/supabaseServer";
+import type { JobRow } from "@/types/db";
+
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+// Descarga el Excel del job desde Storage (bucket privado `resultados`).
+// Requiere sesión (middleware) y la policy de storage para `authenticated`.
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  const supabase = createClient();
+
+  const { data } = await supabase.from("jobs").select("*").eq("id", params.id).single();
+  const job = data as JobRow | null;
+  if (!job?.result_path) {
+    return new NextResponse("Resultado no disponible.", { status: 404 });
+  }
+
+  const { data: file, error } = await supabase.storage
+    .from("resultados")
+    .download(job.result_path);
+  if (error || !file) {
+    return new NextResponse("No se pudo descargar el resultado.", { status: 500 });
+  }
+
+  const buffer = await file.arrayBuffer();
+  return new NextResponse(buffer, {
+    headers: {
+      "content-type": XLSX_MIME,
+      "content-disposition": `attachment; filename="GAS_${params.id.slice(0, 8)}.xlsx"`,
+    },
+  });
+}
