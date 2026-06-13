@@ -303,6 +303,7 @@ alter table public.profiles       enable row level security;
 -- Usuarios autenticados pueden leer catálogos y su trabajo.
 do $$ begin
   create policy "auth read clients"       on public.clients       for select to authenticated using (true);
+  create policy "auth rw clients"          on public.clients       for all    to authenticated using (true) with check (true);
   create policy "auth read area_profiles" on public.area_profiles for select to authenticated using (true);
   create policy "auth rw jobs"            on public.jobs          for all    to authenticated using (true) with check (true);
   create policy "auth read companies"     on public.companies     for select to authenticated using (true);

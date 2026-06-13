@@ -197,6 +197,12 @@ export type JobInsert = {
   created_by?: string | null;
 };
 
+export type ClientInsert = {
+  name: string;
+  slug: string;
+  active?: boolean;
+};
+
 export type CompanyInsert = {
   job_id: string;
   raw_input: string;

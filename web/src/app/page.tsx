@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabaseServer";
 import { StatusBadge } from "@/components/StatusBadge";
+import { NewClientForm } from "@/components/NewClientForm";
 import type { AreaProfileRow, ClientRow, JobRow } from "@/types/db";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ export default async function Dashboard() {
       <div className="row">
         <h1>Dashboard</h1>
         <div className="spacer" />
+        <NewClientForm />
         <a className="btn" href="/jobs/new">
           + Nuevo job
         </a>
@@ -37,7 +39,11 @@ export default async function Dashboard() {
 
       {clients.length === 0 && (
         <div className="panel">
-          No hay clientes. Crea filas en la tabla <code>clients</code> de Supabase.
+          <h2 style={{ marginTop: 0 }}>Aún no hay clientes</h2>
+          <p className="muted small">
+            Crea el primero para poder lanzarle jobs.
+          </p>
+          <NewClientForm />
         </div>
       )}
 
