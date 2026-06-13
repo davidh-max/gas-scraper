@@ -80,6 +80,12 @@ def persist_company(sb: Any, company: Company) -> None:
 def insert_contacts(sb: Any, contacts: list[Contact]) -> None:
     if not contacts:
         return
+    # guarda anti-huérfanos: las FKs son NOT NULL en el esquema (ver models.py)
+    orphans = [c for c in contacts if not c.company_id or not c.job_id]
+    if orphans:
+        raise RuntimeError(
+            f"{len(orphans)} contactos sin company_id/job_id; no se insertan (evita huérfanos)."
+        )
     rows = [
         c.model_dump(mode="json", exclude={"id", "created_at"}, exclude_none=True)
         for c in contacts

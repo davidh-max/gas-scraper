@@ -262,6 +262,24 @@ create trigger trg_jobs_updated_at before update on public.jobs
   for each row execute function public.set_updated_at();
 
 -- ----------------------------------------------------------------------------
+-- Auto-provisión de `profiles` al crear un usuario en auth.users.
+-- Sin esto, `jobs.created_by → profiles(id)` viola la FK (la web pone created_by
+-- = auth.uid() al crear un job, y debe existir la fila en profiles).
+-- ----------------------------------------------------------------------------
+create or replace function public.handle_new_user() returns trigger as $$
+begin
+  insert into public.profiles (id, email)
+  values (new.id, new.email)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_auth_user_created on auth.users;
+create trigger trg_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ----------------------------------------------------------------------------
 -- Storage bucket para los Excel de resultados
 -- ----------------------------------------------------------------------------
 insert into storage.buckets (id, name, public)

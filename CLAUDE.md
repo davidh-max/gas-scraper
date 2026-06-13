@@ -45,7 +45,11 @@ búsqueda devuelva casi todo a 0 o que se dispare el coste.
 6. **Anti-homónimos por `companyId` canónico.** Si el `companyId` del perfil
    difiere del canónico de la empresa buscada → **descartar** (es otra empresa).
    Si **falta** el `companyId` y la empresa sí tiene uno → **degradar a
-   `revisar`** con flag `verificar_empresa` (no se borra, se señala).
+   `revisar`** con flag `verificar_empresa` (no se borra, se señala). El canónico
+   es el `companyId` **numérico** real de la empresa buscada cuando la resolución
+   lo proporciona; si solo se tiene un handle de vanidad (no comparable con los ids
+   numéricos de los perfiles), se usa como respaldo la **moda** de los `companyId`
+   que traen los perfiles devueltos para esa empresa.
 7. **Ante la duda, `revisar`. Nunca se borra a nadie.** Mejor que el cliente
    descarte un dudoso a colar un falso positivo.
 8. **Antes de gastar en un lote, validar la cuenta Apify** con una llamada mínima

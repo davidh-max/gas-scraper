@@ -79,6 +79,10 @@ def resolve_heuristic(company: Company) -> Company:
     company.resolution_method = ResolutionMethod.unresolved
     company.resolution_confidence = 0.0
     company.status = CompanyStatus.no_url
+    company.note = (
+        "No se pudo resolver la URL de LinkedIn (sin dominio ni URL). "
+        "Aportar el dominio o la URL de empresa, o resolver vía SERP."
+    )
     return company
 
 

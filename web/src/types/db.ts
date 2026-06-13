@@ -138,6 +138,53 @@ export interface JobEventRow {
   created_at: string;
 }
 
+// Paso 3/4 (stubs): tablas creadas, sin uso en la web todavía. Aquí por completitud
+// del espejo del esquema.
+export interface VerificationRow {
+  id: string;
+  contact_id: string;
+  method: VerificationMethod;
+  verdict: VerificationVerdict;
+  confidence: number | null;
+  signal_json: Record<string, unknown>;
+  cost: number;
+  created_at: string;
+}
+
+export interface PhoneRow {
+  id: string;
+  contact_id: string;
+  number: string | null;
+  type: string | null;
+  source: string | null;
+  robinson_status: RobinsonStatus;
+  legal_basis: string | null;
+  created_at: string;
+}
+
+export interface CompanyUrlCacheRow {
+  id: string;
+  cache_key: string;
+  linkedin_url: string | null;
+  linkedin_company_id: string | null;
+  resolution_method: ResolutionMethod;
+  resolution_confidence: number | null;
+  created_at: string;
+  expires_at: string | null;
+}
+
+export interface VerificationCacheRow {
+  id: string;
+  cache_key: string;
+  method: VerificationMethod;
+  verdict: VerificationVerdict;
+  confidence: number | null;
+  signal_json: Record<string, unknown>;
+  cost: number;
+  created_at: string;
+  expires_at: string | null;
+}
+
 // --------------------------------------------------------------------- inserts
 export type JobInsert = {
   client_id: string;
@@ -178,6 +225,10 @@ export interface Database {
       companies: Table<CompanyRow, CompanyInsert>;
       contacts: Table<ContactRow, Partial<ContactRow>>;
       job_events: Table<JobEventRow, Partial<JobEventRow>>;
+      verifications: Table<VerificationRow, Partial<VerificationRow>>;
+      phones: Table<PhoneRow, Partial<PhoneRow>>;
+      company_url_cache: Table<CompanyUrlCacheRow, Partial<CompanyUrlCacheRow>>;
+      verification_cache: Table<VerificationCacheRow, Partial<VerificationCacheRow>>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

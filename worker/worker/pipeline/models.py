@@ -3,6 +3,12 @@
 Mantener en sincronía con `web/src/types/db.ts` y el esquema SQL. Los `id` y
 `created_at` son opcionales para que un mismo modelo sirva tanto para una fila ya
 persistida (con id) como para una a insertar (sin id; los rellena Postgres).
+
+Las **FKs** (`job_id`, `company_id`, `contact_id`) también se declaran opcionales a
+propósito: en modo CLI (sin BD) no hay job y nunca se persisten. En el SQL son
+`NOT NULL`, así que ANTES de insertar deben estar presentes — el worker lo garantiza
+(las companies vienen de la BD con `job_id`, y cada contact toma `company_id`/`job_id`
+de su empresa) y `worker.main.insert_contacts` añade una guarda anti-huérfanos.
 """
 
 from __future__ import annotations

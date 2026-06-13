@@ -29,8 +29,9 @@ REASON_MISMATCH = "companyId distinto (homónimo)"
 def verify_company_match(contact: Contact, canonical_id: str | None) -> Verification:
     """Compara el companyId del perfil con el canónico de la empresa buscada.
 
-    El `canonical_id` se deduce de los PROPIOS perfiles de la empresa (el companyId
-    más común entre los que sí traen `company_linkedin_url`), no de la URL resuelta.
+    El `canonical_id` lo decide quien llama (`pipeline._verify_company_ids`): es el
+    companyId NUMÉRICO real de la empresa buscada cuando la resolución lo dio, y si no,
+    la moda de los `company_linkedin_url` de los propios perfiles (heurística de respaldo).
 
     Veredictos (regla de oro nº6):
       - `confirmed`: el perfil declara una empresa con el mismo companyId canónico.

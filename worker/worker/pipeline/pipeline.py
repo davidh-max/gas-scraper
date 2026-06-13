@@ -68,6 +68,15 @@ def run_pipeline(
         use_fixtures=use_fixtures, fixtures_dir=fixtures_dir, client=apify_client
     )
 
+    # ---------------------------------------------------------------- Paso 0: validar cuenta
+    # Regla de oro nº8: antes de gastar en el lote (live), validar la cuenta Apify con
+    # una llamada mínima a Amadeus. En fixtures no se gasta nada, así que se omite.
+    if not use_fixtures and apify_client is not None:
+        if not apify_client.validate_account():
+            raise RuntimeError(
+                "Cuenta Apify no validada (Amadeus): saldo/plan/permisos. Lote abortado."
+            )
+
     # ---------------------------------------------------------------- Paso 1: resolver
     emit(JobStatus.resolving, "Resolviendo URLs de LinkedIn", {"total": len(companies)})
     for company in companies:
@@ -119,7 +128,7 @@ def run_pipeline(
 
     # ---------------------------------------------------------------- Paso 3: verificar
     emit(JobStatus.verifying, "Verificando (companyId match)", {"contacts": len(contacts)})
-    verifications, kept = _verify_company_ids(contacts)
+    verifications, kept = _verify_company_ids(contacts, companies)
     contacts = kept
 
     # marca status de cada empresa según resultados
@@ -193,16 +202,28 @@ def _companies_without_contacts(
 
 
 def _verify_company_ids(
-    contacts: list[Contact],
+    contacts: list[Contact], companies: list[Company]
 ) -> tuple[list[Verification], list[Contact]]:
-    """Anti-homónimos: deduce el companyId canónico por empresa (moda) y aplica el match."""
-    # canónico por empresa = companyId más común entre perfiles que SÍ lo traen
+    """Anti-homónimos (regla de oro nº6). Determina el companyId canónico por empresa.
+
+    Preferimos el companyId **numérico real de la empresa buscada** (`linkedin_company_id`,
+    resuelto en el Paso 1) cuando la resolución lo proporcionó. Si la resolución solo dio
+    un handle de vanidad (no numérico, no comparable con los `companyLinkedinUrl` numéricos
+    de los perfiles), caemos a la heurística validada: la **moda** de los companyId que
+    traen los propios perfiles de esa empresa.
+    """
+    company_by_id: dict[str, Company] = {c.id: c for c in companies if c.id}
     by_company: dict[str, list[Contact]] = defaultdict(list)
     for c in contacts:
         by_company[c.company_id or ""].append(c)
 
     canonical_by_company: dict[str, str] = {}
     for company_id, group in by_company.items():
+        company = company_by_id.get(company_id)
+        resolved = (company.linkedin_company_id or "") if company else ""
+        if resolved.isdigit():
+            canonical_by_company[company_id] = resolved  # id real de la empresa buscada
+            continue
         ids = Counter(
             canonical_company_id(c.company_linkedin_url)
             for c in group

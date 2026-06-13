@@ -16,6 +16,7 @@ export function NewJobForm({
 }) {
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const count = useMemo(() => parseCompanies(text).length, [text]);
   const cost = useMemo(() => estimateCostUsd(count), [count]);
@@ -24,8 +25,15 @@ export function NewJobForm({
     <form
       action={async (fd) => {
         setPending(true);
+        setError(null);
         try {
           await createJob(fd);
+        } catch (e) {
+          // `redirect()` lanza NEXT_REDIRECT como control de flujo: re-lánzalo.
+          if (e && typeof e === "object" && "digest" in e && String(e.digest).startsWith("NEXT_REDIRECT")) {
+            throw e;
+          }
+          setError(e instanceof Error ? e.message : "No se pudo crear el job.");
         } finally {
           setPending(false);
         }
@@ -97,6 +105,11 @@ export function NewJobForm({
         </span>
       </div>
 
+      {error && (
+        <p className="small" style={{ color: "var(--red)", marginTop: 12 }}>
+          {error}
+        </p>
+      )}
       <button className="btn" type="submit" disabled={pending || count === 0} style={{ marginTop: 14 }}>
         {pending ? "Creando…" : "Crear job"}
       </button>
