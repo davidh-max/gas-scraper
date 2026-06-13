@@ -1,0 +1,39 @@
+# ---- Secrets (NEVER commit) ----
+.env
+.env.local
+.env.*.local
+*.key
+service-account*.json
+
+# ---- Python (worker) ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+
+# ---- Node / Next.js (web) ----
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# ---- Generated artifacts ----
+*.xlsx
+!worker/tests/fixtures/**/*.xlsx
+/tmp_out/
+worker/out/
+
+# ---- OS / editor ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
