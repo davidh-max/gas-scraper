@@ -1,0 +1,82 @@
+[
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/marta-gomez-cio",
+    "firstName": "Marta",
+    "lastName": "Gómez",
+    "currentPositions": [{ "companyName": "Amadeus", "title": "Chief Information Officer", "current": true }],
+    "location": { "linkedinText": "Madrid, Community of Madrid, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/amadeus"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/luis-fernandez-tech",
+    "firstName": "Luis",
+    "lastName": "Fernández",
+    "currentPositions": [{ "companyName": "Amadeus", "title": "Director de Tecnología", "current": true }],
+    "location": { "linkedinText": "Barcelona, Catalonia, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/amadeus"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/ana-ruiz-mkt",
+    "firstName": "Ana",
+    "lastName": "Ruiz",
+    "currentPositions": [{ "companyName": "Amadeus", "title": "Marketing Manager", "current": true }],
+    "location": { "linkedinText": "Madrid, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/amadeus"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/alvaro-pernas-bnext",
+    "firstName": "Alvaro",
+    "lastName": "Pernas Contin",
+    "currentPositions": [{ "companyName": "Bnext", "title": "CTO", "current": true }],
+    "location": { "linkedinText": "Barcelona, Catalonia, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/bnext"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/sergi-pla-glovo",
+    "firstName": "Sergi",
+    "lastName": "Pla",
+    "currentPositions": [{ "companyName": "Glovo", "title": "Head of Engineering", "current": true }],
+    "location": { "linkedinText": "Barcelona, Catalonia, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/glovo"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/diego-santos-cabify",
+    "firstName": "Diego",
+    "lastName": "Santos",
+    "currentPositions": [{ "companyName": "Cabify", "title": "IT Director", "current": true }],
+    "location": { "linkedinText": "Madrid, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/cabify"] }, "_fixture_pass": "B" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/pablo-marin-techcorp",
+    "firstName": "Pablo",
+    "lastName": "Marín",
+    "currentPositions": [{ "companyName": "TechCorp Sistemas", "title": "Director de Sistemas", "current": true, "companyLinkedinUrl": "https://www.linkedin.com/company/55501" }],
+    "location": { "linkedinText": "Valencia, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/tech-corp"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/elena-vidal-techcorp",
+    "firstName": "Elena",
+    "lastName": "Vidal",
+    "currentPositions": [{ "companyName": "TechCorp Sistemas", "title": "CIO", "current": true, "companyLinkedinUrl": "https://www.linkedin.com/company/55501" }],
+    "location": { "linkedinText": "Valencia, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/tech-corp"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/homonimo-it-manager",
+    "firstName": "Roberto",
+    "lastName": "Díaz",
+    "currentPositions": [{ "companyName": "TechCorp Distribución", "title": "IT Manager", "current": true, "companyLinkedinUrl": "https://www.linkedin.com/company/88888" }],
+    "location": { "linkedinText": "Sevilla, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/tech-corp"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/nuria-soler-techcorp",
+    "firstName": "Nuria",
+    "lastName": "Soler",
+    "currentPositions": [{ "companyName": "TechCorp Sistemas", "title": "Head of IT", "current": true }],
+    "location": { "linkedinText": "Valencia, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/tech-corp"] }, "_fixture_pass": "A" }
+  }
+]
