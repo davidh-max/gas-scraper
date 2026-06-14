@@ -67,8 +67,12 @@ create table if not exists public.clients (
   name        text not null,
   slug        text not null unique,
   active      boolean not null default true,
+  settings    jsonb not null default '{}'::jsonb,   -- personalización: logo_url, brand_color, website, sector
   created_at  timestamptz not null default now()
 );
+-- Para BDs ya existentes (la tabla ya está creada), aplicar la columna con:
+--   alter table public.clients add column if not exists settings jsonb not null default '{}'::jsonb;
+-- (La policy "auth rw clients" (for all) ya permite el UPDATE de settings.)
 
 -- ----------------------------------------------------------------------------
 -- 2) profiles  — usuarios de la app (1:1 con auth.users)
@@ -113,6 +117,7 @@ create table if not exists public.jobs (
   backup_area_profile_id uuid references public.area_profiles(id),
   status                 job_status not null default 'queued',
   use_fixtures           boolean not null default false,
+  reception_only         boolean not null default false,  -- true: worker solo recibe empresas y para
   -- contadores (se rellenan según avanza)
   total_companies        integer not null default 0,
   resolved_companies     integer not null default 0,

@@ -6,6 +6,7 @@
 import type {
   AreaProfileRow,
   ClientRow,
+  ClientSettings,
   ContactRow,
   ContactStatus,
   JobRow,
@@ -32,6 +33,7 @@ export interface CreateJobInput {
   areaId: string;
   backupAreaId: string | null;
   useFixtures: boolean;
+  receptionOnly: boolean;
   companies: ParsedCompany[];
 }
 
@@ -39,9 +41,11 @@ export interface DataSource {
   // Lecturas
   getClients(): Promise<ClientRow[]>;
   getActiveClients(): Promise<ClientRow[]>;
+  getClient(id: string): Promise<ClientRow | null>;
   getAreas(): Promise<AreaProfileRow[]>;
   getActiveAreas(): Promise<AreaProfileRow[]>;
   getJobs(): Promise<JobRow[]>;
+  getJobsByClient(clientId: string): Promise<JobRow[]>;
   getJobContext(id: string): Promise<JobContext | null>;
   getReviewContacts(limit?: number): Promise<ReviewContact[]>;
   getReviewPendingCount(): Promise<number>;
@@ -49,6 +53,7 @@ export interface DataSource {
   // Escrituras (devuelven datos crudos; el redirect/revalidate vive en actions)
   createJob(input: CreateJobInput): Promise<string>;
   createClientRecord(name: string): Promise<void>;
+  updateClientSettings(id: string, settings: ClientSettings): Promise<void>;
   updateContactStatus(id: string, status: ContactStatus): Promise<void>;
 }
 

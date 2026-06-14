@@ -3,7 +3,7 @@
 // compartido (optimistas, sin backend). Permite navegar toda la web sin Supabase
 // ni sesión.
 
-import type { AreaProfileRow, ClientRow, ContactStatus, JobRow } from "@/types/db";
+import type { AreaProfileRow, ClientRow, ClientSettings, ContactStatus, JobRow } from "@/types/db";
 import { estimateCostUsd } from "@/lib/cost";
 import { slugify } from "@/lib/slug";
 import { getMockStore } from "./mockSeed";
@@ -21,6 +21,10 @@ export class MockSource implements DataSource {
     return getMockStore().clients.filter((c) => c.active).sort(byName);
   }
 
+  async getClient(id: string): Promise<ClientRow | null> {
+    return getMockStore().clients.find((c) => c.id === id) ?? null;
+  }
+
   async getAreas(): Promise<AreaProfileRow[]> {
     return [...getMockStore().areas];
   }
@@ -31,6 +35,10 @@ export class MockSource implements DataSource {
 
   async getJobs(): Promise<JobRow[]> {
     return [...getMockStore().jobs].sort(byCreatedDesc);
+  }
+
+  async getJobsByClient(clientId: string): Promise<JobRow[]> {
+    return getMockStore().jobs.filter((j) => j.client_id === clientId).sort(byCreatedDesc);
   }
 
   async getJobContext(id: string): Promise<JobContext | null> {
@@ -65,6 +73,7 @@ export class MockSource implements DataSource {
       backup_area_profile_id: input.backupAreaId,
       status: "queued",
       use_fixtures: input.useFixtures,
+      reception_only: input.receptionOnly,
       total_companies: input.companies.length,
       resolved_companies: 0,
       total_contacts: 0,
@@ -93,8 +102,14 @@ export class MockSource implements DataSource {
       name: clean,
       slug,
       active: true,
+      settings: {},
       created_at: new Date().toISOString(),
     });
+  }
+
+  async updateClientSettings(id: string, settings: ClientSettings): Promise<void> {
+    const client = getMockStore().clients.find((c) => c.id === id);
+    if (client) client.settings = settings;
   }
 
   async updateContactStatus(id: string, status: ContactStatus): Promise<void> {

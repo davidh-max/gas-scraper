@@ -46,11 +46,21 @@ export const JOB_STATUS_FLOW: JobStatus[] = [
 ];
 
 // --------------------------------------------------------------------- rows
+// Personalización por cliente — se guarda en la columna jsonb `clients.settings`.
+// Todo opcional; un cliente recién creado tiene `{}`.
+export interface ClientSettings {
+  logo_url?: string | null;
+  brand_color?: string | null;
+  website?: string | null;
+  sector?: string | null;
+}
+
 export interface ClientRow {
   id: string;
   name: string;
   slug: string;
   active: boolean;
+  settings: ClientSettings;
   created_at: string;
 }
 
@@ -80,6 +90,7 @@ export interface JobRow {
   backup_area_profile_id: string | null;
   status: JobStatus;
   use_fixtures: boolean;
+  reception_only: boolean;
   total_companies: number;
   resolved_companies: number;
   total_contacts: number;
@@ -192,6 +203,7 @@ export type JobInsert = {
   backup_area_profile_id?: string | null;
   status?: JobStatus;
   use_fixtures?: boolean;
+  reception_only?: boolean;
   total_companies?: number;
   estimated_cost_usd?: number | null;
   created_by?: string | null;

@@ -55,6 +55,7 @@ function buildStore(): MockStore {
     backup_area_profile_id: j.backup_area_profile_id,
     status: j.status,
     use_fixtures: false,
+    reception_only: false,
     total_companies: j.total,
     resolved_companies: j.resolved,
     total_contacts: j.ok + j.revisar,
@@ -91,11 +92,11 @@ function buildStore(): MockStore {
 
   return {
     clients: [
-      { id: "naviera", name: "Naviera Cantábrica", slug: "naviera-cantabrica", active: true, created_at: iso(720) },
-      { id: "solhost", name: "Grupo Hostelero Sol", slug: "grupo-hostelero-sol", active: true, created_at: iso(700) },
-      { id: "valles", name: "Inmobiliaria Vallés", slug: "inmobiliaria-valles", active: true, created_at: iso(650) },
-      { id: "tecnobalear", name: "TecnoBalear Software", slug: "tecnobalear-software", active: true, created_at: iso(600) },
-      { id: "ribera", name: "Bodegas Ribera Alta", slug: "bodegas-ribera-alta", active: true, created_at: iso(540) },
+      { id: "naviera", name: "Naviera Cantábrica", slug: "naviera-cantabrica", active: true, settings: { brand_color: "#0A4D8C", sector: "Transporte marítimo", website: "naviera-cantabrica.es" }, created_at: iso(720) },
+      { id: "solhost", name: "Grupo Hostelero Sol", slug: "grupo-hostelero-sol", active: true, settings: { brand_color: "#E8550A", sector: "Hostelería" }, created_at: iso(700) },
+      { id: "valles", name: "Inmobiliaria Vallés", slug: "inmobiliaria-valles", active: true, settings: { sector: "Inmobiliaria" }, created_at: iso(650) },
+      { id: "tecnobalear", name: "TecnoBalear Software", slug: "tecnobalear-software", active: true, settings: { brand_color: "#00B8D9", sector: "Software", website: "tecnobalear.com" }, created_at: iso(600) },
+      { id: "ribera", name: "Bodegas Ribera Alta", slug: "bodegas-ribera-alta", active: true, settings: { sector: "Alimentación y bebidas" }, created_at: iso(540) },
     ],
     areas: [
       { id: "max", key: "max", name: "Máximo ejecutivo", description: "CEO, director general, fundador, dueño", params: {}, active: true, created_at: iso(900) },

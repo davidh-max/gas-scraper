@@ -69,7 +69,7 @@ export default function LoginPage() {
           }}
         />
         <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12 }}>
-          <Image src="/gas-mark.png" alt="GAS" width={36} height={36} priority />
+          <Image src="/gas-mark.png" alt="GAS" width={54} height={36} priority style={{ height: 34, width: "auto" }} />
           <span style={{ font: "var(--weight-extra) 27px/1 var(--font-display)", letterSpacing: ".05em", textTransform: "uppercase" }}>
             Scraper
           </span>

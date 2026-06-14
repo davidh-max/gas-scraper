@@ -1,8 +1,9 @@
 import Link from "next/link";
 
+import { ClientAvatar } from "@/components/ClientAvatar";
 import { NewClientForm } from "@/components/NewClientForm";
 import { getDataSource } from "@/lib/data";
-import { clientInitials, clientStats } from "@/lib/dashboard";
+import { clientStats } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default async function ClientsPage() {
               {stats.map((s) => (
                 <Link
                   key={s.client.id}
-                  href="/"
+                  href={`/clients/${s.client.id}`}
                   className="gas-row"
                   style={{
                     display: "flex",
@@ -88,22 +89,12 @@ export default async function ClientsPage() {
                     color: "var(--ink)",
                   }}
                 >
-                  <span
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 11,
-                      background: "var(--ink)",
-                      color: "#fff",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      font: "var(--weight-bold) 16px/1 var(--font-tech)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {clientInitials(s.client.name)}
-                  </span>
+                  <ClientAvatar
+                    name={s.client.name}
+                    logoUrl={s.client.settings.logo_url}
+                    color={s.client.settings.brand_color}
+                    size={44}
+                  />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ font: "var(--weight-bold) 15px/1.15 var(--font-sans)", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {s.client.name}

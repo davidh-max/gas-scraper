@@ -10,6 +10,7 @@ import type {
   AreaProfileRow,
   ClientInsert,
   ClientRow,
+  ClientSettings,
   CompanyInsert,
   CompanyRow,
   ContactRow,
@@ -24,10 +25,16 @@ import {
   type ReviewContact,
 } from "./source";
 
+// `settings` puede faltar si la columna jsonb aún no se migró: normaliza a {}.
+function normalizeClient(row: unknown): ClientRow {
+  const c = row as ClientRow;
+  return { ...c, settings: c.settings ?? {} };
+}
+
 export class SupabaseSource implements DataSource {
   async getClients(): Promise<ClientRow[]> {
     const { data } = await createClient().from("clients").select("*").order("name");
-    return (data ?? []) as ClientRow[];
+    return (data ?? []).map(normalizeClient);
   }
 
   async getActiveClients(): Promise<ClientRow[]> {
@@ -36,7 +43,12 @@ export class SupabaseSource implements DataSource {
       .select("*")
       .eq("active", true)
       .order("name");
-    return (data ?? []) as ClientRow[];
+    return (data ?? []).map(normalizeClient);
+  }
+
+  async getClient(id: string): Promise<ClientRow | null> {
+    const { data } = await createClient().from("clients").select("*").eq("id", id).single();
+    return data ? normalizeClient(data) : null;
   }
 
   async getAreas(): Promise<AreaProfileRow[]> {
@@ -61,6 +73,15 @@ export class SupabaseSource implements DataSource {
     return (data ?? []) as JobRow[];
   }
 
+  async getJobsByClient(clientId: string): Promise<JobRow[]> {
+    const { data } = await createClient()
+      .from("jobs")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+    return (data ?? []) as JobRow[];
+  }
+
   async getJobContext(id: string): Promise<JobContext | null> {
     const supabase = createClient();
     const { data: jobData } = await supabase.from("jobs").select("*").eq("id", id).single();
@@ -77,7 +98,7 @@ export class SupabaseSource implements DataSource {
 
     return {
       job,
-      client: (clientRes.data as ClientRow | null) ?? null,
+      client: clientRes.data ? normalizeClient(clientRes.data) : null,
       area: (areaRes.data as AreaProfileRow | null) ?? null,
       backupArea: (backupRes.data as AreaProfileRow | null) ?? null,
     };
@@ -134,6 +155,7 @@ export class SupabaseSource implements DataSource {
         area_profile_id: input.areaId,
         backup_area_profile_id: input.backupAreaId,
         use_fixtures: input.useFixtures,
+        reception_only: input.receptionOnly,
         status: "queued",
         total_companies: input.companies.length,
         estimated_cost_usd: estimateCostUsd(input.companies.length),
@@ -180,6 +202,11 @@ export class SupabaseSource implements DataSource {
         throw new Error(error.message);
       }
     }
+  }
+
+  async updateClientSettings(id: string, settings: ClientSettings): Promise<void> {
+    const { error } = await createClient().from("clients").update({ settings }).eq("id", id);
+    if (error) throw new Error(error.message);
   }
 
   async updateContactStatus(id: string, status: ContactStatus): Promise<void> {

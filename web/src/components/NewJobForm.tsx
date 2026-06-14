@@ -6,7 +6,10 @@ import { Button, Select, Switch } from "@/ds";
 import { createJob } from "@/lib/actions";
 import { estimateCostUsd } from "@/lib/cost";
 import { parseCompanies } from "@/lib/parseCompanies";
+import { parseCsv, type CsvTable } from "@/lib/parseCsv";
+import type { ParsedCompany } from "@/lib/parseCompanies";
 import type { AreaProfileRow, ClientRow } from "@/types/db";
+import { CsvColumnMapper } from "./CsvColumnMapper";
 
 const PLACEHOLDER = [
   "Naviera Costa Brava S.A.",
@@ -96,11 +99,24 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
   const [backup, setBackup] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados para el flujo de subida + mapeo de columnas
+  const [fileMode, setFileMode] = useState<"idle" | "mapper" | "confirmed">("idle");
+  const [mapperTable, setMapperTable] = useState<CsvTable | null>(null);
+  const [mappedCompanies, setMappedCompanies] = useState<ParsedCompany[] | null>(null);
+  const [mapperError, setMapperError] = useState<string | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const parsed = useMemo(() => parseCompanies(text), [text]);
-  const count = parsed.length;
-  const withUrl = parsed.filter((c) => c.linkedin_url).length;
+  const parsedFromText = useMemo(() => parseCompanies(text), [text]);
+  const companiesToSend = useMemo<ParsedCompany[]>(() => {
+    if (tab === "paste") return parsedFromText;
+    if (tab === "upload" && mappedCompanies) return mappedCompanies;
+    return [];
+  }, [tab, parsedFromText, mappedCompanies]);
+
+  const count = companiesToSend.length;
+  const withUrl = companiesToSend.filter((c) => c.linkedin_url).length;
   const cost = useMemo(() => estimateCostUsd(count), [count]);
   const costLabel = cost.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -111,10 +127,52 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setMapperError(null);
     file.text().then((t) => {
-      setText(t);
-      setTab("paste");
+      const table = parseCsv(t);
+      if (table.headers.length === 0 || table.rows.length === 0) {
+        setMapperError("El archivo parece vacío. Revisa que tenga al menos una fila de datos.");
+        setFileMode("idle");
+        return;
+      }
+
+      // Una sola columna: mapeo automático directo.
+      if (table.headers.length === 1) {
+        const companies: ParsedCompany[] = table.rows
+          .map((row) => {
+            const raw = row[0]?.trim() ?? "";
+            if (!raw) return null;
+            const item: ParsedCompany = {
+              raw_input: raw,
+              razon_social: null,
+              cif: null,
+              domain: null,
+              linkedin_url: null,
+            };
+            return item;
+          })
+          .filter((c): c is ParsedCompany => c !== null);
+        setMappedCompanies(companies);
+        setFileMode("confirmed");
+        return;
+      }
+
+      setMapperTable(table);
+      setFileMode("mapper");
     });
+  }
+
+  function handleMapperConfirm(companies: ParsedCompany[]) {
+    setMappedCompanies(companies);
+    setFileMode("confirmed");
+  }
+
+  function handleMapperCancel() {
+    setFileMode("idle");
+    setMapperTable(null);
+    setMappedCompanies(null);
+    setMapperError(null);
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   return (
@@ -135,6 +193,7 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
         }
       }}
     >
+      <input type="hidden" name="companies_json" value={JSON.stringify(companiesToSend)} />
       <div
         style={{
           display: "flex",
@@ -229,7 +288,6 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder={PLACEHOLDER}
-                required
                 style={{
                   width: "100%",
                   minHeight: 200,
@@ -246,38 +304,90 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
           ) : (
             <div
               style={{
-                border: "2px dashed var(--border-default)",
+                border: "1.5px solid var(--border-default)",
                 borderRadius: "var(--radius-md)",
+                overflow: "hidden",
                 background: "#fff",
-                padding: 30,
-                textAlign: "center",
+                padding: "20px",
               }}
             >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: "var(--red-50)",
-                  color: "var(--color-brand)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <i data-lucide="file-spreadsheet" style={{ width: 24, height: 24 }} />
-              </div>
-              <div style={{ font: "var(--weight-bold) 15px/1.2 var(--font-sans)", color: "var(--ink)" }}>
-                Sube un .csv o .txt con las empresas
-              </div>
-              <div style={{ font: "var(--weight-medium) 13px/1.4 var(--font-sans)", color: "var(--text-muted)", margin: "6px 0 14px" }}>
-                Una empresa por línea — se vuelca al cuadro de texto para revisarla.
-              </div>
-              <input ref={fileRef} type="file" accept=".csv,.txt,text/csv,text/plain" onChange={onFile} style={{ display: "none" }} />
-              <Button variant="secondary" icon="folder-open" type="button" onClick={() => fileRef.current?.click()}>
-                Elegir archivo
-              </Button>
+              {fileMode === "idle" && (
+                <div
+                  style={{
+                    border: "2px dashed var(--border-default)",
+                    borderRadius: "var(--radius-md)",
+                    background: "#fff",
+                    padding: 30,
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      background: "var(--red-50)",
+                      color: "var(--color-brand)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <i data-lucide="file-spreadsheet" style={{ width: 24, height: 24 }} />
+                  </div>
+                  <div style={{ font: "var(--weight-bold) 15px/1.2 var(--font-sans)", color: "var(--ink)" }}>
+                    Sube un .csv o .txt con las empresas
+                  </div>
+                  <div style={{ font: "var(--weight-medium) 13px/1.4 var(--font-sans)", color: "var(--text-muted)", margin: "6px 0 14px" }}>
+                    Cada fila será una empresa. Podrás mapear las columnas a continuación.
+                  </div>
+                  {mapperError && (
+                    <div style={{ color: "var(--color-danger)", font: "var(--weight-medium) 13px/1.4 var(--font-sans)", marginBottom: 12 }}>
+                      {mapperError}
+                    </div>
+                  )}
+                  <input ref={fileRef} type="file" accept=".csv,.txt,text/csv,text/plain" onChange={onFile} style={{ display: "none" }} />
+                  <Button variant="secondary" icon="folder-open" type="button" onClick={() => fileRef.current?.click()}>
+                    Elegir archivo
+                  </Button>
+                </div>
+              )}
+
+              {fileMode === "mapper" && mapperTable && (
+                <CsvColumnMapper
+                  table={mapperTable}
+                  onConfirm={handleMapperConfirm}
+                  onCancel={handleMapperCancel}
+                />
+              )}
+
+              {fileMode === "confirmed" && mappedCompanies && (
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div>
+                      <div style={{ font: "var(--weight-bold) 15px/1.2 var(--font-sans)", color: "var(--ink)" }}>
+                        Archivo listo
+                      </div>
+                      <div style={{ font: "var(--weight-medium) 13px/1.4 var(--font-sans)", color: "var(--text-muted)" }}>
+                        {mappedCompanies.length}{" "}
+                        {mappedCompanies.length === 1 ? "empresa mapeada" : "empresas mapeadas"}
+                        {withUrl > 0 && ` · ${withUrl} con LinkedIn URL`}
+                      </div>
+                    </div>
+                    <Button variant="secondary" type="button" onClick={handleMapperCancel}>
+                      Cambiar archivo
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

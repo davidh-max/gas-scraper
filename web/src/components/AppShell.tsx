@@ -126,7 +126,14 @@ export function AppShell({
           href="/"
           style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 6px 22px", color: "#fff" }}
         >
-          <Image src="/gas-mark.png" alt="GAS" width={28} height={28} priority />
+          <Image
+            src="/gas-mark.png"
+            alt="GAS"
+            width={42}
+            height={28}
+            priority
+            style={{ height: 26, width: "auto" }}
+          />
           <span
             style={{
               font: "var(--weight-extra) 21px/1 var(--font-display)",
@@ -328,6 +335,7 @@ export function AppShell({
             style={{
               display: "flex",
               alignItems: "center",
+              flexWrap: "wrap",
               gap: 10,
               padding: "10px 26px",
               background: "var(--red-50)",
@@ -336,7 +344,7 @@ export function AppShell({
               font: "var(--weight-semibold) 13px/1.3 var(--font-sans)",
             }}
           >
-            <i data-lucide="flask-conical" style={{ width: 16, height: 16 }} />
+            <i data-lucide="flask-conical" style={{ width: 16, height: 16, flexShrink: 0 }} />
             Modo MockData activo — datos de demostración. Las acciones no tocan Supabase y se reinician al recargar.
           </div>
         )}
