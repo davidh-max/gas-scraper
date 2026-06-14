@@ -30,7 +30,7 @@ from .models import (
     SourcePass,
     Verification,
 )
-from .resolver.apify_serp import ApifySerpResolver
+from .resolver.apify_company_url import resolve_linkedin_urls
 from .resolver.base import canonical_company_id, handle_of
 from .verify import apply_company_match
 
@@ -53,7 +53,7 @@ def run_pipeline(
     use_fixtures: bool = False,
     fixtures_dir: Path | None = None,
     apify_client: ApifyClient | None = None,
-    serp_actor_id: str | None = None,
+    resolve_only: bool = False,
     on_event: EventCallback | None = None,
 ) -> PipelineResult:
     """Ejecuta el pipeline completo sobre `companies` y devuelve el resultado."""
@@ -63,28 +63,24 @@ def run_pipeline(
             on_event(status, message, payload or {})
 
     classify_cfg = (area.params or {}).get("classify", {})
-    resolver = ApifySerpResolver(use_fixtures=use_fixtures, serp_actor_id=serp_actor_id)
     search = EmployeesSearch(
         use_fixtures=use_fixtures, fixtures_dir=fixtures_dir, client=apify_client
     )
 
     # ---------------------------------------------------------------- Paso 0: validar cuenta
-    # Regla de oro nº8: antes de gastar en el lote (live), validar la cuenta Apify con
-    # una llamada mínima a Amadeus. En fixtures no se gasta nada, así que se omite.
     if not use_fixtures and apify_client is not None:
-        if not apify_client.validate_account():
+        if not apify_client.validate_company_url_finder():
             raise RuntimeError(
-                "Cuenta Apify no validada (Amadeus): saldo/plan/permisos. Lote abortado."
+                "Cuenta Apify no validada (company-url-finder): saldo/plan/permisos. "
+                "Lote abortado."
             )
 
     # ---------------------------------------------------------------- Paso 1: resolver
     emit(JobStatus.resolving, "Resolviendo URLs de LinkedIn", {"total": len(companies)})
+    resolve_linkedin_urls(companies, apify_client if not use_fixtures else None)
     for company in companies:
-        resolver.resolve(company)
         if not company.id:
             company.id = company_key(company)
-        if company.linkedin_url:
-            company.linkedin_company_id = canonical_company_id(company.linkedin_url)
     resolved = [c for c in companies if c.status == CompanyStatus.resolved]
     by_handle: dict[str, Company] = {handle_of(c.linkedin_url): c for c in resolved}
     emit(
@@ -92,6 +88,21 @@ def run_pipeline(
         "Resolución completada",
         {"resolved": len(resolved), "unresolved": len(companies) - len(resolved)},
     )
+
+    if resolve_only:
+        # Modo fase 2: solo resolución de URLs de empresa, no buscamos empleados.
+        summary = {
+            "companies_total": len(companies),
+            "companies_resolved": len(resolved),
+            "companies_unresolved": len(companies) - len(resolved),
+            "contacts_total": 0,
+            "decisor": 0,
+            "revisar": 0,
+            "companies_with_results": 0,
+            "companies_no_result": 0,
+            "resolve_only": True,
+        }
+        return PipelineResult(companies=companies, contacts=[], verifications=[], summary=summary)
 
     # ---------------------------------------------------------------- Paso 2/2b: buscar
     emit(JobStatus.searching, "Buscando decisores (Pasada A)", {"companies": len(resolved)})

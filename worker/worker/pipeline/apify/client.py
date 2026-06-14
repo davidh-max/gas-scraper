@@ -1,8 +1,8 @@
-"""Cliente fino del Actor de Apify (REST). Live path detrás de flag — STUB en esta tanda.
+"""Cliente fino del Actor de Apify (REST). Soporta modo live real.
 
 Reglas de oro que este cliente DEBE respetar (ver CLAUDE.md):
-  - UNA sola llamada por pasada: todas las URLs en `companies`, `companyBatchMode="one_by_one"`.
-  - `profileScraperMode="Short ($4 per 1k)"`.
+  - UNA sola llamada por pasada: todas las URLs en `companies`, companyBatchMode="one_by_one".
+  - profileScraperMode="Short ($4 per 1k)".
   - Al LEER el dataset, usar `omit`, NUNCA `fields` (la proyección rompe arrays).
 """
 
@@ -17,17 +17,6 @@ APIFY_BASE = "https://api.apify.com/v2"
 # Campos de ruido que descartamos al leer el dataset (regla de oro: omit, no fields).
 DATASET_OMIT = "summary,pictureUrl,openProfile,premium,id"
 
-# Llamada mínima de validación de cuenta (regla de oro nº8).
-AMADEUS_VALIDATION_INPUT: dict[str, Any] = {
-    "companies": ["https://www.linkedin.com/company/amadeus/"],
-    "locations": ["Spain"],
-    "functionIds": ["13"],
-    "profileScraperMode": "Short ($4 per 1k)",
-    "companyBatchMode": "one_by_one",
-    "maxItemsPerCompany": 3,
-    "maxItems": 3,
-}
-
 
 class ApifyError(RuntimeError):
     pass
@@ -36,24 +25,71 @@ class ApifyError(RuntimeError):
 class ApifyClient:
     """Wrapper REST mínimo. Solo se usa en modo NO-fixtures (live)."""
 
-    def __init__(self, token: str, employees_actor_id: str, *, timeout: float = 600.0) -> None:
+    def __init__(
+        self,
+        token: str,
+        employees_actor_id: str,
+        company_url_finder_actor_id: str,
+        *,
+        timeout: float = 600.0,
+    ) -> None:
         if not token:
             raise ApifyError("APIFY_TOKEN vacío: el modo live requiere token.")
         self.token = token
         self.employees_actor_id = employees_actor_id
+        self.company_url_finder_actor_id = company_url_finder_actor_id
         self.timeout = timeout
+        self._http_cache: httpx.Client | None = None
 
-    # --- llamada al Actor + lectura del dataset (one_by_one + omit) ---------
+    # --- llamada genérica a un Actor + lectura del dataset ------------------
+
+    def run_actor_sync(
+        self,
+        actor_id: str,
+        run_input: dict[str, Any],
+        *,
+        omit: str = DATASET_OMIT,
+    ) -> list[dict[str, Any]]:
+        """POST run-sync-get-dataset-items y devuelve los items del dataset."""
+        url = (
+            f"{APIFY_BASE}/acts/{actor_id}/"
+            f"run-sync-get-dataset-items?token={self.token}&omit={omit}"
+        )
+        client = self._http()
+        resp = client.post(url, json=run_input)
+        if resp.status_code not in (200, 201):
+            try:
+                detail = resp.json()
+            except Exception:
+                detail = resp.text
+            raise ApifyError(f"Apify actor {actor_id} error {resp.status_code}: {detail}")
+        data = resp.json()
+        return data if isinstance(data, list) else data.get("items", [])
+
+    def run_company_url_finder(
+        self,
+        queries: list[str],
+        max_concurrency: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Resuelve URLs de LinkedIn para una lista de nombres de empresa en UNA llamada."""
+        if not queries:
+            return []
+        run_input: dict[str, Any] = {
+            "queries": "\n".join(queries),
+            "maxConcurrency": max_concurrency,
+        }
+        return self.run_actor_sync(self.company_url_finder_actor_id, run_input, omit="")
+
+    def validate_company_url_finder(self) -> bool:
+        """Valida saldo/permisos con una llamada mínima al actor de resolución."""
+        try:
+            items = self.run_company_url_finder(["Amadeus IT Group"])
+        except ApifyError:
+            return False
+        return len(items) > 0
 
     def run_employees(self, run_input: dict[str, Any]) -> list[dict[str, Any]]:
-        """Lanza UNA pasada del Actor y devuelve los items del dataset (leídos con `omit`).
-
-        # TODO(paso-2, live): verificar el flujo real contra Apify:
-        #   1) POST /acts/{actor}/run-sync-get-dataset-items?token=...&omit=DATASET_OMIT
-        #      con `run_input` (debe traer companyBatchMode="one_by_one").
-        #   2) o bien run asíncrono + polling de get-actor-run + get-dataset-items.
-        #   Manejar `free user run limit exceeded` y runs de 0 items (problema de cuenta).
-        """
+        """Lanza UNA pasada del Actor de empleados y devuelve los items del dataset."""
         self._assert_golden_rules(run_input)
         url = (
             f"{APIFY_BASE}/acts/{self.employees_actor_id}"
@@ -65,13 +101,10 @@ class ApifyClient:
             f"(POST listo a {url.split('?')[0]})"
         )
 
-    def validate_account(self) -> bool:
-        """Valida saldo/permisos con la llamada mínima a Amadeus (regla de oro nº8).
-
-        # TODO(paso-0): ejecutar AMADEUS_VALIDATION_INPUT; devolver True si vienen
-        #   perfiles, False si 0 items en ~3-5 s (problema de cuenta).
-        """
-        raise NotImplementedError("validate_account: pendiente de verificación live.")
+    def _http(self) -> httpx.Client:
+        if self._http_cache is None:
+            self._http_cache = httpx.Client(timeout=self.timeout)
+        return self._http_cache
 
     @staticmethod
     def _assert_golden_rules(run_input: dict[str, Any]) -> None:
@@ -83,6 +116,3 @@ class ApifyClient:
             raise ApifyError(
                 "Regla de oro: no mezclar jobTitles con seniorityLevelIds (van en pasadas A/B)."
             )
-
-    def _http(self) -> httpx.Client:  # pragma: no cover - solo live
-        return httpx.Client(timeout=self.timeout)

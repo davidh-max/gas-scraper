@@ -124,6 +124,7 @@ class Job(BaseModel):
     backup_area_profile_id: str | None = None
     status: JobStatus = JobStatus.queued
     use_fixtures: bool = False
+    reception_only: bool = False
     total_companies: int = 0
     resolved_companies: int = 0
     total_contacts: int = 0

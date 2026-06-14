@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # Apify
     apify_token: str = ""
     apify_employees_actor_id: str = "Vb6LZkh4EqRlR0Ka9"
+    apify_company_url_finder_actor_id: str = "9X6Pju8NeHNTvzRxF"
     apify_serp_actor_id: str = ""
 
     # Storage

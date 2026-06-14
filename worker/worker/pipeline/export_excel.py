@@ -34,6 +34,8 @@ CONTACT_HEADERS = [
 CONTACT_WIDTHS = [14, 28, 24, 16, 18, 32, 26, 16, 44, 38, 14, 16]
 EMPTY_HEADERS = ["CIF", "Razón social", "Empresa", "LinkedIn Empresa", "Nota"]
 EMPTY_WIDTHS = [14, 28, 26, 44, 80]
+RESOLVED_HEADERS = ["Razón social", "Empresa", "LinkedIn Empresa", "Método", "Confianza"]
+RESOLVED_WIDTHS = [28, 26, 44, 14, 12]
 
 _DEFAULT_NOTE = (
     "0 resultados con sede en España bajo los filtros. Posibles causas: equipo "
@@ -139,14 +141,11 @@ def export_excel(
     ws_rev = wb.create_sheet("Revisar")
     _write_contact_sheet(ws_rev, revisar, by_id)
 
-    # Hoja "Sin resultado": empresas sin contactos o sin URL
-    with_contacts = {c.company_id for c in contacts}
+    # Hoja "Sin resultado": empresas sin URL o con error de resolución
     ws_no = wb.create_sheet("Sin resultado")
     _header(ws_no, EMPTY_HEADERS)
     for comp in companies:
-        empty = comp.status in (CompanyStatus.no_result, CompanyStatus.no_url, CompanyStatus.error)
-        key = company_key(comp)
-        if not empty and key in with_contacts:
+        if comp.status not in (CompanyStatus.no_result, CompanyStatus.no_url, CompanyStatus.error):
             continue
         ws_no.append([
             comp.cif or "",
@@ -160,6 +159,22 @@ def export_excel(
             wrap_text=True, vertical="top"
         )
     _autofit(ws_no, EMPTY_WIDTHS)
+
+    # Hoja "Empresas resueltas": visible cuando solo estamos resolviendo URLs.
+    resolved = [c for c in companies if c.linkedin_url]
+    if resolved and not contacts:
+        ws_res = wb.create_sheet("Empresas resueltas")
+        _header(ws_res, RESOLVED_HEADERS)
+        for comp in resolved:
+            ws_res.append([
+                comp.razon_social or "",
+                _company_display(comp),
+                "",
+                comp.resolution_method.value,
+                f"{(comp.resolution_confidence or 0):.2f}",
+            ])
+            _set_link(ws_res.cell(row=ws_res.max_row, column=3), comp.linkedin_url)
+        _autofit(ws_res, RESOLVED_WIDTHS)
 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)

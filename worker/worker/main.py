@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import get_settings
+from .pipeline.apify.client import ApifyClient
 from .pipeline.area_profiles import load_area_profile_by_id
 from .pipeline.export_excel import export_excel
 from .pipeline.models import Company, Contact, Job, JobStatus
@@ -143,12 +144,22 @@ def process_job(sb: Any, job: Job, *, use_fixtures: bool) -> None:
     if not companies:
         raise RuntimeError("El job no tiene empresas (la web debe insertarlas al crear el job).")
 
+    apify_client: ApifyClient | None = None
+    if not use_fixtures:
+        apify_client = ApifyClient(
+            token=settings.apify_token,
+            employees_actor_id=settings.apify_employees_actor_id,
+            company_url_finder_actor_id=settings.apify_company_url_finder_actor_id,
+        )
+
     result: PipelineResult = run_pipeline(
         companies,
         area,
         backup_area=backup,
         use_fixtures=use_fixtures,
         fixtures_dir=FIXTURES_DIR if use_fixtures else None,
+        apify_client=apify_client,
+        resolve_only=True,
         on_event=on_event,
     )
 
