@@ -37,3 +37,6 @@ worker/out/
 .idea/
 .vscode/
 *.swp
+
+# ---- Claude Code (config local por máquina) ----
+.claude/settings.local.json

@@ -1,0 +1,48 @@
+/* ============================================================
+   GAS — base interaction layer
+   Hover / active / focus states for components (pure inline styles
+   can't express pseudo-states). Scoped to component classNames.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ---- Buttons ---- */
+.gas-btn:focus-visible { outline: none; box-shadow: var(--ring-brand); }
+.gas-btn--primary:not(:disabled):hover   { background: var(--color-brand-hover); box-shadow: var(--glow-red); transform: translateY(-1px); }
+.gas-btn--primary:not(:disabled):active  { background: var(--color-brand-active); transform: scale(0.98) translateY(0); box-shadow: var(--glow-red-sm); }
+.gas-btn--accent:not(:disabled):hover    { background: var(--color-accent-hover); transform: translateY(-1px); }
+.gas-btn--accent:not(:disabled):active   { transform: scale(0.98); }
+.gas-btn--dark:not(:disabled):hover      { background: var(--neutral-800); transform: translateY(-1px); }
+.gas-btn--dark:not(:disabled):active     { background: var(--neutral-900); transform: scale(0.98); }
+.gas-btn--secondary:not(:disabled):hover { border-color: var(--border-strong); background: var(--neutral-50); }
+.gas-btn--secondary:not(:disabled):active{ background: var(--neutral-100); transform: scale(0.99); }
+.gas-btn--ghost:not(:disabled):hover     { background: var(--neutral-100); }
+.gas-btn--ghost:not(:disabled):active    { background: var(--neutral-200); transform: scale(0.99); }
+
+/* ---- Icon button ---- */
+.gas-iconbtn:focus-visible { outline: none; box-shadow: var(--ring-brand); }
+.gas-iconbtn:not(:disabled):hover  { background: var(--neutral-100); }
+.gas-iconbtn:not(:disabled):active { background: var(--neutral-200); transform: scale(0.94); }
+.gas-iconbtn--brand:not(:disabled):hover  { background: var(--color-brand-hover); }
+.gas-iconbtn--brand:not(:disabled):active { background: var(--color-brand-active); transform: scale(0.94); }
+
+/* ---- Inputs ---- */
+.gas-input:focus-visible,
+.gas-input:focus { outline: none; border-color: var(--border-brand); box-shadow: var(--ring-brand); }
+.gas-input::placeholder { color: var(--text-disabled); }
+
+/* ---- Cards (interactive) ---- */
+.gas-card--interactive { cursor: pointer; transition: box-shadow var(--dur-base) var(--ease-standard), transform var(--dur-base) var(--ease-standard); }
+.gas-card--interactive:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+/* ---- Tabs ---- */
+.gas-tab { transition: color var(--dur-base) var(--ease-standard); }
+.gas-tab:hover { color: var(--text-primary); }
+
+/* ---- Switch ---- */
+.gas-switch { transition: background var(--dur-base) var(--ease-standard); }
+.gas-switch__knob { transition: transform var(--dur-base) var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gas-btn, .gas-iconbtn, .gas-card--interactive, .gas-switch__knob { transition: none !important; transform: none !important; }
+}

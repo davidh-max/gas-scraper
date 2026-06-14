@@ -1,0 +1,8 @@
+/* GAS webfonts — loaded from Google Fonts CDN.
+   SUBSTITUTION NOTE: the GAS brand uses a custom condensed geometric wordmark
+   (see assets/logo/gas-logo.png). These are the closest free matches:
+   - Saira Condensed  -> display / condensed bold headlines (the "impact" voice)
+   - Chakra Petch     -> techy cut-corner labels echoing the logo wordmark / neon signage
+   - Hanken Grotesk   -> clean medium-weight body & UI text
+   Replace with the real brand fonts when available. */
+@import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Chakra+Petch:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');

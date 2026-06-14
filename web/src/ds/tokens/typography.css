@@ -1,0 +1,59 @@
+/* ============================================================
+   GAS — TYPOGRAPHY TOKENS
+   Display: Saira Condensed (condensed bold impact — headlines, hero)
+   Tech:    Chakra Petch    (cut-corner labels, neon signage, kickers)
+   Body:    Hanken Grotesk  (clean medium UI + reading text)
+   ============================================================ */
+:root {
+  /* Families */
+  --font-display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --font-tech:    "Chakra Petch", "Saira Condensed", sans-serif;
+  --font-sans:    "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+  --font-body:    var(--font-sans);
+
+  /* Weights */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --weight-extra:    800;
+
+  /* Type scale (px) — display steps run condensed + tight */
+  --text-3xs:  11px;
+  --text-2xs:  12px;
+  --text-xs:   13px;
+  --text-sm:   14px;
+  --text-md:   16px;   /* body default */
+  --text-lg:   18px;
+  --text-xl:   22px;
+  --text-2xl:  28px;
+  --text-3xl:  36px;
+  --text-4xl:  48px;
+  --text-5xl:  64px;
+  --text-6xl:  84px;
+  --text-7xl:  112px;
+
+  /* Line heights */
+  --leading-tight:   1.02;   /* big condensed display */
+  --leading-snug:    1.12;
+  --leading-heading: 1.18;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+
+  /* Letter spacing */
+  --tracking-tighter: -0.02em;
+  --tracking-tight:   -0.01em;
+  --tracking-normal:  0em;
+  --tracking-wide:    0.04em;
+  --tracking-wider:   0.08em;
+  --tracking-kicker:  0.16em;   /* uppercase tech kickers */
+
+  /* Semantic roles */
+  --font-hero:     var(--weight-extra) var(--text-7xl)/var(--leading-tight) var(--font-display);
+  --font-h1:       var(--weight-bold)  var(--text-5xl)/var(--leading-tight) var(--font-display);
+  --font-h2:       var(--weight-bold)  var(--text-4xl)/var(--leading-snug) var(--font-display);
+  --font-h3:       var(--weight-semibold) var(--text-2xl)/var(--leading-heading) var(--font-display);
+  --font-kicker:   var(--weight-bold)  var(--text-xs)/1 var(--font-tech);
+  --font-body-md:  var(--weight-regular) var(--text-md)/var(--leading-normal) var(--font-sans);
+  --font-label:    var(--weight-semibold) var(--text-sm)/1.2 var(--font-sans);
+}
