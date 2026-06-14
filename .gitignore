@@ -40,3 +40,6 @@ worker/out/
 
 # ---- Claude Code (config local por máquina) ----
 .claude/settings.local.json
+
+# ---- opencode (config local de la herramienta) ----
+.opencode/
