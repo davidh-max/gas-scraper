@@ -23,6 +23,9 @@ COPY worker/pyproject.toml ./
 COPY worker/worker ./worker
 RUN pip install --no-cache-dir -e .
 
+# Cambiar propietario para que el usuario no-root pueda leer y escribir
+RUN chown -R gas:gas /app
+
 # Cambiar a usuario no-root
 USER gas
 
