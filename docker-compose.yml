@@ -1,0 +1,50 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    container_name: gas-web
+    restart: unless-stopped
+    networks:
+      - gas-network
+    # Este servicio no expone puerto directamente; Caddy lo pone a disposición
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: gas-worker
+    restart: unless-stopped
+    env_file:
+      - worker/.env
+    networks:
+      - gas-network
+    # Sin puertos: solo procesa jobs desde Supabase
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: gas-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - gas-network
+    depends_on:
+      - web
+
+networks:
+  gas-network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

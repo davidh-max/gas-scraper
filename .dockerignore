@@ -1,0 +1,45 @@
+# Git / entorno local
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+
+# Python / worker
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+worker/out/
+worker/tests/fixtures/**/*.xlsx
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Docker propio
+Dockerfile*
+docker-compose*.yml
+Caddyfile
+.dockerignore
+
+# Docs innecesarios en imagen
+PROMPT-OPENCODE.md
+DESPLIEGUE-DOCKER.md

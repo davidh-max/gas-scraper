@@ -1,0 +1,18 @@
+{
+    # Email para avisos de Let's Encrypt (certificado HTTPS)
+    email tu-email@example.com
+}
+
+# Cambia esto por tu dominio real
+gas.tudominio.com {
+    reverse_proxy web:3000
+
+    encode gzip zstd
+
+    # Cabeceras de seguridad básicas
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+}

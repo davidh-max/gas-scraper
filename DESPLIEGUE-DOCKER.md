@@ -1,9 +1,19 @@
 # Desplegar GAS en un servidor con Docker
 
 Guía para llevar GAS de tu portátil a un VPS, dockerizado y con HTTPS automático.
-Pensada para alguien que no ha desplegado con Docker antes. **No tienes que escribir
-los `Dockerfile` tú**: para eso está el `PROMPT-OPENCODE.md` (se lo pegas a opencode y
-los genera). Esta guía explica **cómo funciona** y **qué hacer en el servidor**.
+Esta guía asume que los archivos Docker (`Dockerfile`, `docker-compose.yml`, `Caddyfile`,
+`.dockerignore`) ya están en el repositorio. Si hubiera que modificarlos, se hace en el
+propio repo, no manualmente en el servidor.
+
+**TL;DR para expertos:**
+
+```bash
+cd <repo>/
+cp .env.example .env              # edita con tus NEXT_PUBLIC_*
+cp worker/.env.example worker/.env # edita con tus secretos
+nano Caddyfile                    # cambia el dominio y el email
+docker compose up -d --build
+```
 
 ---
 
@@ -149,9 +159,9 @@ Si no usas git remoto, puedes subirlo con `scp` desde tu portátil:
 scp -r "/ruta/a/GAS Scraper" root@<IP-del-VPS>:/root/gas
 ```
 
-> Importante: los archivos Docker (los `Dockerfile`, `docker-compose.yml`, `Caddyfile`)
-> tienen que existir ya en el repo. Genera primero esos archivos con opencode
-> (`PROMPT-OPENCODE.md`), haz commit, y luego clona/sube.
+> Importante: los archivos Docker (`Dockerfile` de web y worker, `docker-compose.yml`,
+> `Caddyfile`, `.dockerignore`) están ya versionados en el repo. La web se construye con
+> `output: 'standalone'` para que la imagen sea ligera y Caddy haga de proxy inverso.
 
 ### Paso 4 — Crear los `.env` reales en el servidor
 
@@ -236,8 +246,8 @@ el script oficial.)
 
 ## 7. Checklist antes de dar por hecho el despliegue
 
-- [ ] opencode ha generado los Dockerfile, `docker-compose.yml`, `Caddyfile` y
-      `.dockerignore`, y has hecho commit.
+- [x] Los archivos Docker (`Dockerfile` web/worker, `docker-compose.yml`, `Caddyfile`,
+      `.dockerignore`) existen en el repo.
 - [ ] El DNS `gas.tudominio.com` → IP del VPS responde.
 - [ ] `worker/.env` y `.env` (raíz) creados en el servidor con claves reales.
 - [ ] Dominio y email puestos en el `Caddyfile`.
