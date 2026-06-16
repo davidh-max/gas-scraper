@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { StatusBadge } from "@/components/StatusBadge";
+import { clientInitials } from "@/lib/dashboard";
 import { isProcessing, jobProgressPct } from "@/lib/dashboard";
 import type { ClientRow, JobRow } from "@/types/db";
 

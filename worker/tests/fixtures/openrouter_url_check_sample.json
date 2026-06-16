@@ -1,0 +1,26 @@
+{
+  "empresa-corregida": {
+    "url_status": "incorrect",
+    "correct_url": "https://www.linkedin.com/company/empresa-corregida-real",
+    "confidence": 0.83,
+    "reasoning": "La URL apuntaba a otra entidad; la página real de la empresa es empresa-corregida-real."
+  },
+  "empresa-respaldo": {
+    "url_status": "correct",
+    "correct_url": null,
+    "confidence": 0.9,
+    "reasoning": "La URL corresponde a la empresa indicada según su web oficial."
+  },
+  "empresa-fantasma": {
+    "url_status": "unknown",
+    "correct_url": null,
+    "confidence": 0.2,
+    "reasoning": "No hay evidencia suficiente en la web para confirmar o desmentir la URL."
+  },
+  "empresavacia": {
+    "url_status": "correct",
+    "correct_url": null,
+    "confidence": 0.75,
+    "reasoning": "La URL parece corresponder a la empresa por su dominio y nombre."
+  }
+}

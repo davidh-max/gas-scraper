@@ -2,12 +2,21 @@
 // Mantener en sincronía con el esquema SQL y con worker/pipeline/models.py.
 
 // --------------------------------------------------------------------- enums
+export type ContactFeedback = "valido" | "no_valido";
+export type FeedbackReason =
+  | "ya_no_en_empresa"
+  | "empresa_incorrecta"
+  | "url_incorrecta"
+  | "jubilado"
+  | "no_es_decisor"
+  | "otro";
+
 export type JobStatus =
   | "queued"
   | "resolving"
   | "searching"
   | "verifying"
-  | "enriching"
+  | "enriching" // legado (Paso 4 descartado): no se transita ni se muestra; ver JOB_STATUS_FLOW
   | "done"
   | "error"
   | "cancelled";
@@ -30,18 +39,20 @@ export type ResolutionMethod =
   | "domain_guess"
   | "serp"
   | "manual"
+  | "llm_web"
   | "unresolved";
 export type VerificationMethod = "heuristic" | "profile_rescrape" | "llm_web";
 export type VerificationVerdict = "confirmed" | "uncertain" | "rejected";
 export type RobinsonStatus = "unknown" | "clean" | "listed" | "error";
 
 // La máquina de estados visible al usuario (orden de progreso).
+// `enriching` (Paso 4, teléfono) está descartado: el flujo va verifying → done. El
+// valor sigue en el enum `JobStatus` (y en el enum SQL) como legado, pero no se muestra.
 export const JOB_STATUS_FLOW: JobStatus[] = [
   "queued",
   "resolving",
   "searching",
   "verifying",
-  "enriching",
   "done",
 ];
 
@@ -136,6 +147,11 @@ export interface ContactRow {
   heuristic_score: number | null;
   verify_flag: string | null;
   status: ContactStatus;
+  feedback: ContactFeedback;
+  feedback_reason: FeedbackReason | null;
+  feedback_note: string | null;
+  feedback_at: string | null;
+  feedback_by: string | null;
   created_at: string;
 }
 
@@ -257,6 +273,8 @@ export interface Database {
       source_pass: SourcePass;
       contact_classification: Classification;
       contact_status: ContactStatus;
+      contact_feedback: ContactFeedback;
+      feedback_reason: FeedbackReason;
       resolution_method: ResolutionMethod;
       verification_method: VerificationMethod;
       verification_verdict: VerificationVerdict;

@@ -16,7 +16,6 @@ const PHASES: { status: (typeof JOB_STATUS_FLOW)[number]; title: string; icon: s
   { status: "resolving", title: "Resolviendo URLs", icon: "link" },
   { status: "searching", title: "Buscando decisores", icon: "search" },
   { status: "verifying", title: "Verificando", icon: "badge-check" },
-  { status: "enriching", title: "Enriqueciendo", icon: "sparkles" },
   { status: "done", title: "Hecho", icon: "flag" },
 ];
 
@@ -183,7 +182,9 @@ export function JobProgress({
               Progreso del lote
             </div>
             <div style={{ font: "var(--weight-semibold) 15px/1 var(--font-sans)", color: "var(--text-secondary)", marginTop: 8 }}>
-              {job.resolved_companies} de {job.total_companies} empresas procesadas
+              {job.status === "done"
+                ? `${job.resolved_companies} de ${job.total_companies} empresas procesadas`
+                : `${job.total_companies} empresas en este lote`}
             </div>
           </div>
           <span style={{ font: "var(--weight-extra) 56px/0.85 var(--font-tech)", color: "var(--ink)" }}>

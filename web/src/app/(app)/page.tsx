@@ -1,18 +1,26 @@
 import { StatCard } from "@/ds";
 import { DashboardJobs } from "@/components/DashboardJobs";
+import { ExpandableErrorRates } from "@/components/ExpandableErrorRates";
 import { LinkButton } from "@/components/LinkButton";
 import { getDataSource } from "@/lib/data";
 import { jobKpis } from "@/lib/dashboard";
+import type { ErrorRate } from "@/lib/data/source";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const data = getDataSource();
-  const [jobs, clients, areas] = await Promise.all([
+  const [jobs, clients, areas, globalErrorRate] = await Promise.all([
     data.getJobs(),
     data.getClients(),
     data.getAreas(),
+    data.getGlobalErrorRate(),
   ]);
+
+  const clientErrorRates = await Promise.all(
+    clients.map(async (c): Promise<[string, ErrorRate]> => [c.id, await data.getClientErrorRate(c.id)]),
+  );
+  const errorRateByClient = Object.fromEntries(clientErrorRates);
 
   const areaNames: Record<string, string> = {};
   for (const a of areas) areaNames[a.id] = a.name;
@@ -69,7 +77,14 @@ export default async function DashboardPage() {
           </LinkButton>
         </div>
       ) : (
-        <DashboardJobs jobs={jobs} clients={clients} areaNames={areaNames} />
+        <ExpandableErrorRates
+          globalErrorRate={globalErrorRate}
+          clients={clients}
+          jobs={jobs}
+          errorRateByClient={errorRateByClient}
+        >
+          <DashboardJobs jobs={jobs} clients={clients} areaNames={areaNames} />
+        </ExpandableErrorRates>
       )}
     </div>
   );

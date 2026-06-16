@@ -1,0 +1,116 @@
+{
+  "beatriz-cio-amadeus": {
+    "element": {
+      "firstName": "Beatriz",
+      "lastName": "Méndez-Villamil",
+      "headline": "C-Level Executive | Digital, AI and Technology Strategy | Global CIO at Amadeus",
+      "multiLocaleHeadline": [
+        { "locale": "es_ES", "value": "Directiva C-Level | Estrategia Digital, IA y Tecnología | CIO Global en Amadeus" },
+        { "locale": "en_US", "value": "Global CIO at Amadeus" }
+      ],
+      "location": {
+        "parsed": { "countryCode": "ES", "city": "Madrid", "country": "Spain" },
+        "linkedinText": "Madrid, Community of Madrid, Spain"
+      },
+      "linkedinUrl": "https://www.linkedin.com/in/beatriz-cio-amadeus",
+      "currentPosition": [
+        {
+          "position": "Global CIO",
+          "companyName": "Amadeus",
+          "companyId": "2780",
+          "companyUniversalName": "amadeus",
+          "companyLinkedinUrl": "https://www.linkedin.com/company/2780",
+          "startDate": { "text": "Jul 2024" },
+          "duration": "2 yrs",
+          "description": "I lead Amadeus' global digital, data, AI and innovation strategy across all business units and regions, with full ownership of the technology roadmap."
+        }
+      ],
+      "about": "C-Level Executive and Industrial Engineer with 20+ years in technology leadership. I currently serve as Global CIO at Amadeus, owning the digital and IT strategy.",
+      "topSkills": "Global Leadership • Digital Transformation • Artificial Intelligence Strategy • IT Risk Management • Corporate Governance",
+      "experience": [
+        { "position": "VP Information Technology", "companyName": "Amadeus", "startDate": { "text": "2019" }, "endDate": { "text": "2024" } },
+        { "position": "IT Director", "companyName": "Indra", "startDate": { "text": "2014" }, "endDate": { "text": "2019" } }
+      ],
+      "honorsAndAwards": [{ "title": "Best CIO 2026", "issuedBy": "Forbes" }],
+      "profilePicture": "https://media.example/ignored.jpg",
+      "certifications": [{ "name": "ignored" }]
+    },
+    "status": "ok",
+    "error": null
+  },
+  "pedro-ventas-it": {
+    "element": {
+      "firstName": "Pedro",
+      "lastName": "Salas",
+      "headline": "Sales Manager at Amadeus",
+      "location": {
+        "parsed": { "countryCode": "ES", "city": "Madrid", "country": "Spain" },
+        "linkedinText": "Madrid, Spain"
+      },
+      "linkedinUrl": "https://www.linkedin.com/in/pedro-ventas-it",
+      "currentPositions": [
+        {
+          "title": "Sales Manager",
+          "companyName": "Amadeus",
+          "companyId": "2780",
+          "companyLinkedinUrl": "https://www.linkedin.com/company/2780",
+          "startDate": { "text": "2022" }
+        }
+      ],
+      "about": "Enterprise sales of travel technology solutions across EMEA."
+    },
+    "status": "ok",
+    "error": null
+  },
+  "john-london-cto": {
+    "element": {
+      "firstName": "John",
+      "lastName": "Smith",
+      "headline": "CTO at Amadeus UK",
+      "location": {
+        "parsed": { "countryCode": "GB", "city": "London", "country": "United Kingdom" },
+        "linkedinText": "London, United Kingdom"
+      },
+      "linkedinUrl": "https://www.linkedin.com/in/john-london-cto",
+      "currentPosition": [
+        {
+          "position": "CTO",
+          "companyName": "Amadeus",
+          "companyId": "2780",
+          "companyLinkedinUrl": "https://www.linkedin.com/company/2780",
+          "startDate": { "text": "2021" }
+        }
+      ]
+    },
+    "status": "ok",
+    "error": null
+  },
+  "homonimo-distinto": {
+    "element": {
+      "firstName": "Raúl",
+      "lastName": "Gómez",
+      "headline": "IT Manager",
+      "location": {
+        "parsed": { "countryCode": "ES", "city": "Sevilla", "country": "Spain" },
+        "linkedinText": "Sevilla, Spain"
+      },
+      "linkedinUrl": "https://www.linkedin.com/in/homonimo-distinto",
+      "currentPosition": [
+        {
+          "position": "IT Manager",
+          "companyName": "TechCorp Distribución",
+          "companyId": "99999",
+          "companyLinkedinUrl": "https://www.linkedin.com/company/99999",
+          "startDate": { "text": "2020" }
+        }
+      ]
+    },
+    "status": "ok",
+    "error": null
+  },
+  "perfil-sin-datos": {
+    "element": null,
+    "status": "not_found",
+    "error": "profile not found"
+  }
+}

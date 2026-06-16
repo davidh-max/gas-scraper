@@ -18,8 +18,17 @@ from .client import ApifyClient
 
 DEFAULT_MAX_PER_COMPANY = 6
 
-# etiqueta de pasada (source_pass) → clave de params en area_profile
-PASS_TO_PARAM_KEY = {"A": "pass_a", "B": "pass_b", "fallback": "pass_a"}
+# etiqueta de pasada → clave de params en area_profile.
+#   A / B            → área principal (pass_a = función+seniority, pass_b = jobTitles)
+#   backup_a/backup_b → área de respaldo (mismas claves, otra área)
+#   fallback         → alias histórico de backup_a (compatibilidad)
+PASS_TO_PARAM_KEY = {
+    "A": "pass_a",
+    "B": "pass_b",
+    "fallback": "pass_a",
+    "backup_a": "pass_a",
+    "backup_b": "pass_b",
+}
 
 
 def build_pass_input(
@@ -84,12 +93,16 @@ class EmployeesSearch:
         companies: list[Company],
         area_params: dict[str, Any],
         pass_label: str,
+        *,
+        max_per_company: int = DEFAULT_MAX_PER_COMPANY,
     ) -> list[dict[str, Any]]:
         """Devuelve los items del dataset para las `companies` dadas en esta pasada."""
         urls = [c.linkedin_url for c in companies if c.linkedin_url]
         if not urls:
             return []
-        run_input = build_pass_input(urls, area_params, pass_label)
+        run_input = build_pass_input(
+            urls, area_params, pass_label, max_per_company=max_per_company
+        )
 
         if self.use_fixtures:
             return self._run_from_fixtures(urls, pass_label)

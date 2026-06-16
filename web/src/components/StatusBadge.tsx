@@ -61,7 +61,7 @@ export function StatusBadge({ status, progress }: { status: JobStatus; progress?
       </span>
     );
   }
-  // resolving | searching | verifying | enriching → "en proceso"
+  // resolving | searching | verifying (+ enriching legado) → "en proceso"
   return (
     <span style={{ ...PILL, gap: 7, background: "var(--cyan-100)", color: "var(--cyan-500)" }}>
       <PulseDot />

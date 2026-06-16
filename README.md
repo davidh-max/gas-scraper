@@ -49,7 +49,7 @@ cp .env.example .env
 ### 3. Tests
 
 ```bash
-pytest -q          # 44 tests: classify, verify (companyId), confidence
+pytest -q          # classify, verify (companyId + LLM), confidence, pipeline staged
 ruff check .       # lint
 ```
 
@@ -121,8 +121,8 @@ Crea un usuario en Supabase → Authentication para poder hacer login. Flujo:
 | Orquestación + worker loop + persistencia + máquina de estados | ✅ real |
 | Web completa (login, dashboard, crear, progreso, revisión, descarga) | ✅ real |
 | Llamada real a Apify (Actor empleados + SERP) | 🟡 stub tras flag |
-| Paso 3 (verificación por capas) | 🟡 stub (+ companyId-match real) |
-| Paso 4 (teléfono + Robinson + RGPD) | 🟡 stub |
+| Paso 3 (verificación por capas: companyId-match + LLM) | ✅ real (con fixtures) |
+| Paso 4 (teléfono + Robinson + RGPD) | ⛔ fuera de alcance (descartado) |
 | Estimador de coste / validación de cuenta Apify | 🟡 aproximado / firma |
 
 ### TODO (siguiente fase)
@@ -134,17 +134,15 @@ Buscar `# TODO` en el repo. Resumen:
   `validate_account()` con la llamada mínima a Amadeus.
 - **SERP de resolución** (`worker/pipeline/resolver/apify_serp.py`): llamada real al
   Actor SERP + cacheo en `company_url_cache`.
-- **Paso 3 — verificación por capas** (`worker/pipeline/verify.py`,
-  `run_layered_verification`): heurística → re-scrape barato → LLM/web para dudosos,
-  con coste y `verification_cache`; persistir filas en `verifications`.
-- **Paso 4 — teléfono** (`worker/pipeline/enrich_phone.py`): número, tipo, Lista
-  Robinson y base legal RGPD; persistir filas en `phones`.
+- **HarvestAPI live** (`worker/pipeline/harvest.py`): verificar el flujo real de
+  `GET /linkedin/profile?main=true` con una respuesta real y ajustar el mapeo reducido
+  (`verify_llm.reduce_profile`) a los nombres de campo que lleguen de verdad.
+- **Paso 4 — teléfono** (`worker/pipeline/enrich_phone.py`): **descartado por ahora**
+  (queda como stub no-op; la web/BD aún tienen el andamiaje `phones`/`enriching`).
 - **Estimador de coste** (`web/src/lib/cost.ts`): calibrar la tarifa real de
-  `one_by_one` y el nº medio de pasadas.
-- **Persistencia ampliada** (`worker/worker/main.py`): insertar `verifications` y
-  `phones` (requieren los ids de contacto recién creados).
+  `one_by_one` y el nº medio de pasadas; sumar el coste del LLM de verify.
 - **`heuristic_score`** (`worker/pipeline/classify.py`): sustituir el score coarse
-  por uno calibrado en el Paso 3.
+  por uno calibrado (alimenta la selección de dudosos del Paso 3).
 - **RLS**: endurecer las policies por `client_id` (las actuales son mínimas).
 
 ---

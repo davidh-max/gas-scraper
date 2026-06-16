@@ -175,10 +175,15 @@ python -m worker.main --use-fixtures
 - **Real**: Pasos 1-2-2b con fixtures, clasificación determinista, confidence
   fuzzy, Excel de 3 hojas, lectura de `area_profiles`, orquestación, persistencia,
   worker loop, y toda la web (login, dashboard, crear job, progreso, revisión,
-  descarga).
+  descarga). **Paso 3** completo (companyId-match determinista + capa LLM: enriquece el
+  perfil con HarvestAPI REST `harvest.py`, re-chequea empresa, y somete los dudosos al
+  LLM vía OpenRouter `verify_llm.py`; cachea en `verification_cache` y persiste filas en
+  `verifications`). Corre gratis con `--use-fixtures`.
 - **Stub (firma + `# TODO`)**: llamada real al SERP (`resolver/apify_serp.py`),
-  llamada real al Actor (`apify/client.py`, `apify/employees.py`), **Paso 3**
-  (`verify.py`, solo firma + companyId-match básico), **Paso 4**
-  (`enrich_phone.py`), estimador de coste y validación de cuenta Apify.
+  llamada real al Actor de empleados (`apify/client.py`, `apify/employees.py`),
+  estimador de coste y validación de cuenta Apify.
+- **Fuera de alcance (descartado)**: **Paso 4** (teléfono + Lista Robinson + RGPD,
+  `enrich_phone.py`) queda como stub no-op. El andamiaje (`phones`, estado `enriching`)
+  sigue en BD/web por si se retoma.
 
 Ver `README.md` (TODO list) para la lista completa de pendientes.

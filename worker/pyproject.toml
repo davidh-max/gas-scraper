@@ -26,7 +26,13 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["worker", "worker.pipeline", "worker.pipeline.resolver", "worker.pipeline.apify"]
+packages = [
+  "worker",
+  "worker.pipeline",
+  "worker.pipeline.resolver",
+  "worker.pipeline.apify",
+  "worker.pipeline.llm",
+]
 
 [tool.ruff]
 line-length = 100

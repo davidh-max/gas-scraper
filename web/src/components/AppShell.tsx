@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { Avatar, Button, Switch } from "@/ds";
 import { setMode, signOut } from "@/lib/actions";
@@ -86,6 +86,8 @@ export function AppShell({
   const pathname = usePathname() ?? "/";
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [logoutPending, startLogout] = useTransition();
   const isMock = mode === "mock";
 
   const nav: NavEntry[] = [
@@ -236,27 +238,28 @@ export function AppShell({
                 {userMeta}
               </div>
             </div>
-            <form action={signOut}>
-              <button
-                type="submit"
-                aria-label={isMock ? "Salir del modo demo" : "Cerrar sesión"}
-                title={isMock ? "Salir del modo demo" : "Cerrar sesión"}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--neutral-400)",
-                  cursor: "pointer",
-                }}
-              >
-                <i data-lucide="log-out" style={{ width: 16, height: 16 }} />
-              </button>
-            </form>
+            <button
+              type="button"
+              className="gas-logout-btn"
+              onClick={() => setLogoutOpen(true)}
+              disabled={logoutPending}
+              aria-label={isMock ? "Salir del modo demo" : "Cerrar sesión"}
+              title={isMock ? "Salir del modo demo" : "Cerrar sesión"}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 38,
+                height: 38,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: "var(--neutral-400)",
+                cursor: logoutPending ? "not-allowed" : "pointer",
+              }}
+            >
+              <i data-lucide="log-out" style={{ width: 18, height: 18 }} />
+            </button>
           </div>
         </div>
       </aside>
@@ -351,6 +354,64 @@ export function AppShell({
 
         <main style={{ flex: 1, minWidth: 0, padding: "26px 28px" }}>{children}</main>
       </div>
+
+      {/* Diálogo de confirmación de cierre de sesión */}
+      {logoutOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-lg)",
+              width: "100%",
+              maxWidth: 360,
+              padding: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+          >
+            <div
+              style={{
+                font: "var(--weight-bold) 20px/1 var(--font-display)",
+                textTransform: "uppercase",
+                color: "var(--ink)",
+              }}
+            >
+              {isMock ? "Salir del modo demo" : "Cerrar sesión"}
+            </div>
+            <div style={{ font: "var(--weight-medium) 14px/1.5 var(--font-sans)", color: "var(--text-secondary)" }}>
+              {isMock
+                ? "Volverás a la pantalla de login y los datos de demostración se desactivarán."
+                : "¿Seguro que quieres cerrar sesión?"}
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <Button variant="secondary" onClick={() => setLogoutOpen(false)} disabled={logoutPending}>
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => startLogout(async () => signOut())}
+                disabled={logoutPending}
+                style={{ background: "var(--color-danger)", borderColor: "var(--color-danger)" }}
+              >
+                {logoutPending ? "Saliendo…" : isMock ? "Salir del demo" : "Cerrar sesión"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

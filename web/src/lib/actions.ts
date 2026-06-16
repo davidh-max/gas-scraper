@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getDataSource } from "@/lib/data";
 import { getMode, setModeCookie, type Mode } from "@/lib/data/mode";
 import type { ParsedCompany } from "@/lib/parseCompanies";
-import type { ClientSettings, ContactStatus } from "@/types/db";
+import type { ClientSettings, ContactFeedback, ContactStatus, FeedbackReason } from "@/types/db";
 
 // Crea un job (estado `queued`) e inserta sus empresas. El worker lo recoge.
 // Delega en la capa de datos (Supabase o mock según el modo).
@@ -73,6 +73,25 @@ export async function updateClientSettings(formData: FormData): Promise<void> {
   revalidatePath(`/clients/${id}`);
   revalidatePath("/clients");
   revalidatePath("/");
+}
+
+export async function deleteClientRecord(formData: FormData): Promise<void> {
+  const id = String(formData.get("client_id") ?? "");
+  if (!id) throw new Error("Falta el cliente.");
+  await getDataSource().deleteClient(id);
+  revalidatePath("/clients");
+  revalidatePath("/");
+  redirect("/clients");
+}
+
+// Guarda la validez post-llamada de un contacto (eje distinto de la bandeja Revisar).
+export async function updateContactFeedback(
+  contactId: string,
+  feedback: ContactFeedback,
+  reason?: FeedbackReason | null,
+  note?: string | null,
+): Promise<void> {
+  await getDataSource().updateContactFeedback(contactId, feedback, reason, note);
 }
 
 // Aprobar/descartar un contacto desde la bandeja de revisión.

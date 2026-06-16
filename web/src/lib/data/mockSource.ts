@@ -3,11 +3,11 @@
 // compartido (optimistas, sin backend). Permite navegar toda la web sin Supabase
 // ni sesión.
 
-import type { AreaProfileRow, ClientRow, ClientSettings, ContactStatus, JobRow } from "@/types/db";
+import type { AreaProfileRow, ClientRow, ClientSettings, ContactFeedback, ContactStatus, FeedbackReason, JobRow } from "@/types/db";
 import { estimateCostUsd } from "@/lib/cost";
 import { slugify } from "@/lib/slug";
-import { getMockStore } from "./mockSeed";
-import type { CreateJobInput, DataSource, JobContext, ReviewContact } from "./source";
+import { asReviewContact, getMockStore } from "./mockSeed";
+import { computeErrorRateFromContacts, type CreateJobInput, type DataSource, type ErrorRate, type JobContact, type JobContext, type NoResultCompany, type ReviewContact } from "./source";
 
 const byName = (a: { name: string }, b: { name: string }): number => a.name.localeCompare(b.name, "es");
 const byCreatedDesc = (a: JobRow, b: JobRow): number => b.created_at.localeCompare(a.created_at);
@@ -56,11 +56,33 @@ export class MockSource implements DataSource {
   }
 
   async getReviewContacts(limit = 200): Promise<ReviewContact[]> {
-    return getMockStore().review.filter((c) => c.status === "pending").slice(0, limit);
+    return getMockStore()
+      .contacts.filter((c) => c.status === "pending")
+      .map(asReviewContact)
+      .sort((a, b) => a.classification.localeCompare(b.classification) || a.created_at.localeCompare(b.created_at))
+      .slice(0, limit);
   }
 
   async getReviewPendingCount(): Promise<number> {
-    return getMockStore().review.filter((c) => c.status === "pending").length;
+    return getMockStore().contacts.filter((c) => c.status === "pending").length;
+  }
+
+  async getJobContacts(jobId: string): Promise<JobContact[]> {
+    return getMockStore().contacts.filter((c) => c.job_id === jobId);
+  }
+
+  async getJobNoResultCompanies(jobId: string): Promise<NoResultCompany[]> {
+    return getMockStore().noresults.filter((c) => c.companyId.startsWith(`co-nr-${jobId}-`));
+  }
+
+  async getGlobalErrorRate(): Promise<ErrorRate> {
+    return computeErrorRateFromContacts(getMockStore().contacts);
+  }
+
+  async getClientErrorRate(clientId: string): Promise<ErrorRate> {
+    const store = getMockStore();
+    const jobIds = new Set(store.jobs.filter((j) => j.client_id === clientId).map((j) => j.id));
+    return computeErrorRateFromContacts(store.contacts.filter((c) => jobIds.has(c.job_id)));
   }
 
   async createJob(input: CreateJobInput): Promise<string> {
@@ -112,8 +134,37 @@ export class MockSource implements DataSource {
     if (client) client.settings = settings;
   }
 
+  async deleteClient(id: string): Promise<void> {
+    const store = getMockStore();
+    store.jobs = store.jobs.filter((j) => j.client_id !== id);
+    store.contacts = store.contacts.filter((c) => !store.jobs.some((j) => j.id === c.job_id));
+    store.noresults = store.noresults.filter((n) => !store.jobs.some((j) => n.companyId.startsWith(`co-nr-${j.id}-`)));
+    store.clients = store.clients.filter((c) => c.id !== id);
+  }
+
+  async updateContactFeedback(
+    id: string,
+    feedback: ContactFeedback,
+    reason?: FeedbackReason | null,
+    note?: string | null,
+  ): Promise<void> {
+    const store = getMockStore();
+    const contact = store.contacts.find((c) => c.id === id);
+    if (!contact) return;
+    contact.feedback = feedback;
+    contact.feedback_at = new Date().toISOString();
+    contact.feedback_by = "demo";
+    if (feedback === "no_valido") {
+      contact.feedback_reason = reason ?? null;
+      contact.feedback_note = note?.trim() || null;
+    } else {
+      contact.feedback_reason = null;
+      contact.feedback_note = null;
+    }
+  }
+
   async updateContactStatus(id: string, status: ContactStatus): Promise<void> {
-    const contact = getMockStore().review.find((c) => c.id === id);
+    const contact = getMockStore().contacts.find((c) => c.id === id);
     if (contact) contact.status = status;
   }
 }

@@ -65,6 +65,7 @@ class ResolutionMethod(str, Enum):
     domain_guess = "domain_guess"
     serp = "serp"
     manual = "manual"
+    llm_web = "llm_web"  # URL corregida por Gemini (OpenRouter + web search)
     unresolved = "unresolved"
 
 

@@ -21,18 +21,28 @@ from .apify.employees import EmployeesSearch
 from .area_profiles import AreaProfile
 from .classify import classify, heuristic_score
 from .export_excel import company_key
+from .harvest import HarvestClient
+from .llm.openrouter import OpenRouterClient
 from .models import (
     Classification,
     Company,
     CompanyStatus,
     Contact,
     JobStatus,
+    ResolutionMethod,
     SourcePass,
     Verification,
 )
+from .resolve_llm import UrlCheck, validate_company_url
 from .resolver.apify_company_url import resolve_linkedin_urls
 from .resolver.base import canonical_company_id, handle_of
-from .verify import apply_company_match
+from .verify import (
+    InMemoryVerificationCache,
+    VerificationCacheStore,
+    apply_company_match,
+    needs_llm_review,
+    run_layered_verification,
+)
 
 EventCallback = Callable[[JobStatus, str, dict[str, Any]], None]
 
@@ -53,6 +63,11 @@ def run_pipeline(
     use_fixtures: bool = False,
     fixtures_dir: Path | None = None,
     apify_client: ApifyClient | None = None,
+    llm_client: OpenRouterClient | None = None,
+    harvest_client: HarvestClient | None = None,
+    verification_cache: VerificationCacheStore | None = None,
+    verify_llm_max_tokens: int = 400,
+    max_per_company: int = 3,
     resolve_only: bool = False,
     on_event: EventCallback | None = None,
 ) -> PipelineResult:
@@ -122,25 +137,108 @@ def run_pipeline(
             seen.add(key)
             contacts.append(contact)
 
-    # Pasada A (principal)
-    ingest(search.run_pass(resolved, area.params, "A"), SourcePass.A)
+    def run_and_ingest(
+        subset: list[Company], params: dict[str, Any], label: str, source: SourcePass
+    ) -> None:
+        ingest(search.run_pass(subset, params, label, max_per_company=max_per_company), source)
 
-    # Pasada B (refuerzo): empresas resueltas que siguen sin contactos
+    # --- Parte 1: área principal (función+seniority → jobTitles) ---------------
+    run_and_ingest(resolved, area.params, "A", SourcePass.A)  # Pasada A: functionIds+seniority
+
+    # Pasada B (refuerzo): jobTitles sobre las empresas que siguen sin contactos.
     empty_a = _companies_without_contacts(resolved, contacts)
     if empty_a:
-        emit(JobStatus.searching, "Pasada B (seniority/títulos)", {"companies": len(empty_a)})
-        ingest(search.run_pass(empty_a, area.params, "B"), SourcePass.B)
+        emit(JobStatus.searching, "Pasada B (jobTitles)", {"companies": len(empty_a)})
+        run_and_ingest(empty_a, area.params, "B", SourcePass.B)
 
-    # Fallback: área de respaldo sobre las que aún quedan vacías
-    empty_b = _companies_without_contacts(resolved, contacts)
-    if empty_b and backup_area is not None:
-        emit(JobStatus.searching, "Fallback (área de respaldo)", {"companies": len(empty_b)})
-        ingest(search.run_pass(empty_b, backup_area.params, "fallback"), SourcePass.fallback)
+    # --- Parte 2: validar la URL con Gemini y, según el veredicto, respaldo -----
+    # Solo para las empresas que SIGUEN sin nadie tras A+B.
+    still_empty = _companies_without_contacts(resolved, contacts)
+    if still_empty:
+        emit(
+            JobStatus.searching,
+            "Validando URLs sin resultados (Gemini)",
+            {"companies": len(still_empty)},
+        )
+        corrected: list[Company] = []
+        backup_eligible: list[Company] = []
+        for company in still_empty:
+            check = validate_company_url(
+                company, llm_client=llm_client, use_fixtures=use_fixtures, fixtures_dir=fixtures_dir
+            )
+            emit(
+                JobStatus.searching,
+                "Validación de URL",
+                {
+                    "handle": handle_of(company.linkedin_url),
+                    "url_status": check.url_status,
+                    "confidence": check.confidence,
+                    "correct_url": check.correct_url,
+                    "reasoning": check.reasoning,
+                },
+            )
+            if check.url_status == "incorrect" and check.correct_url:
+                _apply_corrected_url(company, check)
+                by_handle[handle_of(company.linkedin_url)] = company  # re-indexa con la URL nueva
+                corrected.append(company)
+            elif check.url_status == "correct":
+                backup_eligible.append(company)
+            # "unknown" o "incorrect" sin correct_url → no se toca (acabará en no_result)
+
+        # Re-ejecutar Parte 1 (A→B) sobre las URLs corregidas. Acotado: una sola vez.
+        if corrected:
+            emit(JobStatus.searching, "Re-búsqueda (URL corregida)", {"companies": len(corrected)})
+            run_and_ingest(corrected, area.params, "A", SourcePass.A)
+            empty_corr = _companies_without_contacts(corrected, contacts)
+            if empty_corr:
+                run_and_ingest(empty_corr, area.params, "B", SourcePass.B)
+            # Las corregidas que sigan vacías van al respaldo (su URL ya es correcta).
+            backup_eligible.extend(_companies_without_contacts(corrected, contacts))
+
+        # Área de respaldo: backup_a (seniority+function) → backup_b (jobTitles).
+        backup_eligible = _companies_without_contacts(backup_eligible, contacts)
+        if backup_eligible and backup_area is not None:
+            emit(
+                JobStatus.searching,
+                "Respaldo (seniority+function)",
+                {"companies": len(backup_eligible)},
+            )
+            run_and_ingest(backup_eligible, backup_area.params, "backup_a", SourcePass.fallback)
+            empty_bk = _companies_without_contacts(backup_eligible, contacts)
+            if empty_bk:
+                emit(JobStatus.searching, "Respaldo (jobTitles)", {"companies": len(empty_bk)})
+                run_and_ingest(empty_bk, backup_area.params, "backup_b", SourcePass.fallback)
 
     # ---------------------------------------------------------------- Paso 3: verificar
+    # Capa 1 (gratis): companyId-match determinista (anti-homónimos).
     emit(JobStatus.verifying, "Verificando (companyId match)", {"contacts": len(contacts)})
-    verifications, kept = _verify_company_ids(contacts, companies)
+    canonical_by_company = _canonical_ids_by_company(contacts, companies)
+    verifications, kept = _verify_company_ids(contacts, canonical_by_company)
     contacts = kept
+
+    # Capa 2 (cara, solo dudosos): enriquecer perfil (HarvestAPI) + LLM (OpenRouter).
+    dudosos = [c for c in contacts if needs_llm_review(c)]
+    if dudosos:
+        emit(JobStatus.verifying, "Verificación LLM (dudosos)", {"dudosos": len(dudosos)})
+        cache = verification_cache or InMemoryVerificationCache()
+        company_by_id = {c.id: c for c in companies if c.id}
+        llm_verifications, rejected = _verify_dudosos_with_llm(
+            dudosos,
+            area,
+            company_by_id=company_by_id,
+            canonical_by_company=canonical_by_company,
+            harvest_client=harvest_client,
+            llm_client=llm_client,
+            use_fixtures=use_fixtures,
+            fixtures_dir=fixtures_dir,
+            cache=cache,
+            max_tokens=verify_llm_max_tokens,
+        )
+        verifications.extend(llm_verifications)
+        if rejected:
+            rejected_ids = {id(c) for c in rejected}
+            contacts = [c for c in contacts if id(c) not in rejected_ids]
+            emit(JobStatus.verifying, "Descartados por LLM (homónimo/fuera)", {"n": len(rejected)})
 
     # marca status de cada empresa según resultados
     with_contacts = {c.company_id for c in contacts}
@@ -150,9 +248,8 @@ def run_pipeline(
                 CompanyStatus.done if company.id in with_contacts else CompanyStatus.no_result
             )
 
-    # ---------------------------------------------------------------- Paso 4: teléfono (STUB)
-    emit(JobStatus.enriching, "Enriquecimiento de teléfono (stub)", {"contacts": len(contacts)})
-    # TODO(paso-4): aquí iría enrich_phone() por contacto. Por ahora no-op.
+    # Paso 4 (teléfono + Lista Robinson + RGPD) está DESCARTADO: no se enriquece ni se
+    # transita por `enriching`. El flujo termina en verify → el worker marca `done`.
 
     # ---------------------------------------------------------------- resumen
     n_dec = sum(1 for c in contacts if c.classification == Classification.decisor)
@@ -212,10 +309,20 @@ def _companies_without_contacts(
     return [c for c in companies if c.id not in have]
 
 
-def _verify_company_ids(
+def _apply_corrected_url(company: Company, check: UrlCheck) -> None:
+    """Sustituye la URL de empresa por la corregida por Gemini (Parte 2, rama 2b)."""
+    company.linkedin_url = check.correct_url
+    company.linkedin_company_id = canonical_company_id(check.correct_url)
+    company.resolution_method = ResolutionMethod.llm_web
+    company.resolution_confidence = check.confidence
+    prefix = f"{company.note} | " if company.note else ""
+    company.note = f"{prefix}URL corregida por Gemini: {check.reasoning[:200]}"
+
+
+def _canonical_ids_by_company(
     contacts: list[Contact], companies: list[Company]
-) -> tuple[list[Verification], list[Contact]]:
-    """Anti-homónimos (regla de oro nº6). Determina el companyId canónico por empresa.
+) -> dict[str, str]:
+    """companyId canónico por empresa (regla de oro nº6). Reutilizado por ambas capas.
 
     Preferimos el companyId **numérico real de la empresa buscada** (`linkedin_company_id`,
     resuelto en el Paso 1) cuando la resolución lo proporcionó. Si la resolución solo dio
@@ -241,7 +348,13 @@ def _verify_company_ids(
             if c.company_linkedin_url
         )
         canonical_by_company[company_id] = ids.most_common(1)[0][0] if ids else ""
+    return canonical_by_company
 
+
+def _verify_company_ids(
+    contacts: list[Contact], canonical_by_company: dict[str, str]
+) -> tuple[list[Verification], list[Contact]]:
+    """Capa 1: aplica el companyId-match (anti-homónimos) a cada contacto."""
     verifications: list[Verification] = []
     kept: list[Contact] = []
     for c in contacts:
@@ -251,3 +364,38 @@ def _verify_company_ids(
         if keep:
             kept.append(c)
     return verifications, kept
+
+
+def _verify_dudosos_with_llm(
+    dudosos: list[Contact],
+    area: AreaProfile,
+    *,
+    company_by_id: dict[str, Company],
+    canonical_by_company: dict[str, str],
+    harvest_client: HarvestClient | None,
+    llm_client: OpenRouterClient | None,
+    use_fixtures: bool,
+    fixtures_dir: Path | None,
+    cache: VerificationCacheStore,
+    max_tokens: int,
+) -> tuple[list[Verification], list[Contact]]:
+    """Capa 2: cada dudoso por `run_layered_verification`. Devuelve (verifications, rechazados)."""
+    verifications: list[Verification] = []
+    rejected: list[Contact] = []
+    for c in dudosos:
+        keep, vs = run_layered_verification(
+            c,
+            area=area,
+            company=company_by_id.get(c.company_id or ""),
+            canonical_id=canonical_by_company.get(c.company_id or "", ""),
+            harvest_client=harvest_client,
+            llm_client=llm_client,
+            use_fixtures=use_fixtures,
+            fixtures_dir=fixtures_dir,
+            cache=cache,
+            max_tokens=max_tokens,
+        )
+        verifications.extend(vs)
+        if not keep:
+            rejected.append(c)
+    return verifications, rejected

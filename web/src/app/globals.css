@@ -71,3 +71,64 @@ svg.lucide {
     opacity: 0;
   }
 }
+
+/* Botón de logout en la sidebar: más grande, hover visible y sin que el SVG "robe" el click. */
+.gas-logout-btn {
+  transition: background var(--dur-base) var(--ease-standard),
+    color var(--dur-base) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+.gas-logout-btn:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.gas-logout-btn:not(:disabled):active {
+  transform: scale(0.94);
+}
+.gas-logout-btn svg {
+  pointer-events: none;
+}
+
+/* Botones de acción en tablas: feedback (3 puntos / x) y OK/X de revisión. */
+.gas-feedback-btn,
+.gas-action-x,
+.gas-action-ok {
+  transition: background var(--dur-base) var(--ease-standard),
+    color var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard);
+}
+.gas-feedback-btn:not(:disabled):hover {
+  background: var(--neutral-100) !important;
+  color: var(--text-primary) !important;
+}
+.gas-feedback-btn[data-feedback="no_valido"]:not(:disabled):hover {
+  background: rgba(227, 6, 19, 0.12) !important;
+  color: var(--color-danger) !important;
+}
+.gas-feedback-btn:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.gas-action-x:not(:disabled):hover {
+  border-color: var(--color-danger) !important;
+  color: var(--color-danger) !important;
+  background: var(--red-50) !important;
+}
+.gas-action-x:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.gas-action-ok:not(:disabled):hover {
+  background: var(--green-600) !important;
+}
+.gas-action-ok:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.gas-feedback-btn svg,
+.gas-action-x svg,
+.gas-action-ok svg {
+  pointer-events: none;
+}

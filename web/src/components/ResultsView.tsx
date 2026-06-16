@@ -1,12 +1,7 @@
 import { slugify } from "@/lib/slug";
 import type { JobRow } from "@/types/db";
-
-export interface ExcelPreviewRow {
-  nombre: string;
-  cargo: string;
-  empresa: string;
-  linkedin: string;
-}
+import { JobContactsTable } from "./JobContactsTable";
+import type { JobContact, NoResultCompany } from "@/lib/data/source";
 
 function pct(part: number, total: number): number {
   if (total <= 0) return 0;
@@ -76,16 +71,17 @@ export function ResultsView({
   job,
   clientName,
   areaName,
-  preview,
+  contacts,
+  noResults,
 }: {
   job: JobRow;
   clientName: string;
   areaName: string;
-  preview: ExcelPreviewRow[];
+  contacts: JobContact[];
+  noResults: NoResultCompany[];
 }) {
   const total = job.total_companies;
   const filename = `${slugify(clientName)}_${slugify(areaName)}_${job.id.slice(0, 6)}.xlsx`;
-  const cols = "28px 1.3fr 1.4fr 1.4fr 1fr 0.8fr";
 
   return (
     <div
@@ -155,107 +151,93 @@ export function ResultsView({
         />
       </div>
 
-      {/* preview + descarga */}
-      <div style={{ display: "flex", gap: 20, alignItems: "stretch", flexWrap: "wrap" }}>
+      {/* CTA de descarga horizontal */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 16,
+          background: "var(--ink)",
+          color: "#fff",
+          borderRadius: "var(--radius-lg)",
+          padding: "16px 22px",
+          position: "relative",
+          overflow: "hidden",
+          margin: "26px 0 20px",
+        }}
+      >
         <div
           style={{
-            flex: 1,
-            minWidth: 380,
-            background: "#fff",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "var(--shadow-sm)",
-            overflow: "hidden",
+            position: "absolute",
+            inset: 0,
+            background: "radial-gradient(280px 150px at 98% 0%, rgba(227,6,19,0.22), transparent)",
           }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--neutral-50)", borderBottom: "1px solid var(--border-subtle)" }}>
-            <i data-lucide="file-spreadsheet" style={{ width: 18, height: 18, color: "var(--green-600)" }} />
-            <span style={{ font: "var(--weight-semibold) 13px/1 var(--font-sans)", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {filename}
-            </span>
-            <span style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
-              <span style={{ font: "var(--weight-bold) 10px/1 var(--font-tech)", padding: "4px 8px", borderRadius: 6, background: "var(--green-100)", color: "var(--green-600)" }}>DECISORES</span>
-              <span style={{ font: "var(--weight-bold) 10px/1 var(--font-tech)", padding: "4px 8px", borderRadius: 6, background: "var(--amber-100)", color: "#9A6A00" }}>REVISAR</span>
-              <span style={{ font: "var(--weight-bold) 10px/1 var(--font-tech)", padding: "4px 8px", borderRadius: 6, background: "var(--neutral-100)", color: "var(--text-secondary)" }}>SIN RESULTADO</span>
-            </span>
-          </div>
-          {preview.length > 0 ? (
-            <div style={{ overflow: "hidden", font: "var(--weight-medium) 12px/1 var(--font-sans)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: cols, background: "var(--neutral-100)", color: "var(--text-muted)", font: "var(--weight-bold) 10px/1 var(--font-tech)", letterSpacing: ".06em", textTransform: "uppercase" }}>
-                <div style={{ padding: "9px 8px", borderRight: "1px solid var(--border-subtle)" }} />
-                <div style={{ padding: "9px 10px", borderRight: "1px solid var(--border-subtle)" }}>Nombre</div>
-                <div style={{ padding: "9px 10px", borderRight: "1px solid var(--border-subtle)" }}>Cargo</div>
-                <div style={{ padding: "9px 10px", borderRight: "1px solid var(--border-subtle)" }}>Empresa</div>
-                <div style={{ padding: "9px 10px", borderRight: "1px solid var(--border-subtle)" }}>LinkedIn</div>
-                <div style={{ padding: "9px 10px" }}>Teléfono</div>
-              </div>
-              {preview.map((r, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: cols, borderBottom: "1px solid var(--neutral-100)" }}>
-                  <div style={{ padding: "9px 8px", textAlign: "center", color: "var(--neutral-300)", borderRight: "1px solid var(--neutral-100)", font: "var(--weight-bold) 10px/1.3 var(--font-tech)" }}>{i + 1}</div>
-                  <div style={{ padding: "9px 10px", borderRight: "1px solid var(--neutral-100)", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.nombre}</div>
-                  <div style={{ padding: "9px 10px", borderRight: "1px solid var(--neutral-100)", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.cargo}</div>
-                  <div style={{ padding: "9px 10px", borderRight: "1px solid var(--neutral-100)", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.empresa}</div>
-                  <div style={{ padding: "9px 10px", borderRight: "1px solid var(--neutral-100)", color: "var(--text-link)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.linkedin}</div>
-                  <div style={{ padding: "9px 10px", color: "var(--neutral-300)", fontStyle: "italic" }}>—</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ padding: "28px 16px", color: "var(--text-muted)", font: "var(--weight-medium) 13px/1.5 var(--font-sans)" }}>
-              La lista completa está dentro del Excel — tres hojas (Decisores, Revisar y Sin resultado), con la
-              columna teléfono lista para rellenar a mano.
-            </div>
-          )}
-        </div>
-
-        {/* panel de descarga */}
-        <div
-          style={{
-            width: 300,
-            flexShrink: 0,
-            background: "var(--ink)",
-            color: "#fff",
-            borderRadius: "var(--radius-lg)",
-            padding: 26,
-            display: "flex",
-            flexDirection: "column",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(360px 200px at 90% 0%, rgba(227,6,19,0.22), transparent)" }} />
-          <div style={{ position: "relative", display: "flex", flexDirection: "column", height: "100%" }}>
-            <div style={{ font: "var(--weight-bold) 11px/1 var(--font-tech)", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--neon-cyan)" }}>
+        />
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+          <span
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.1)",
+              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <i data-lucide="download" style={{ width: 20, height: 20 }} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                font: "var(--weight-bold) 10px/1 var(--font-tech)",
+                letterSpacing: ".14em",
+                textTransform: "uppercase",
+                color: "var(--neon-cyan)",
+              }}
+            >
               Lista lista para llamar
             </div>
-            <div style={{ font: "var(--weight-extra) 40px/0.95 var(--font-display)", textTransform: "uppercase", marginTop: 12 }}>
-              Bájalo
-              <br />y a por <span style={{ color: "var(--red-400)" }}>ello ⚡</span>
-            </div>
-            <div style={{ font: "var(--weight-medium) 13px/1.5 var(--font-sans)", color: "var(--neutral-400)", marginTop: 12 }}>
-              Un archivo, tres hojas. La columna teléfono va lista para rellenar a mano.
-            </div>
-            <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
-              <a
-                href={`/jobs/${job.id}/download`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  height: 56,
-                  borderRadius: 999,
-                  background: "var(--color-brand)",
-                  color: "#fff",
-                  font: "var(--weight-bold) 17px/1 var(--font-sans)",
-                  boxShadow: "var(--glow-red-sm)",
-                }}
-              >
-                <i data-lucide="download" style={{ width: 19, height: 19 }} /> Descargar Excel
-              </a>
+            <div
+              style={{
+                font: "var(--weight-extra) 26px/0.95 var(--font-display)",
+                textTransform: "uppercase",
+                marginTop: 4,
+              }}
+            >
+              Bájalo y a por <span style={{ color: "var(--red-400)" }}>ello ⚡</span>
             </div>
           </div>
         </div>
+        <a
+          href={`/jobs/${job.id}/download`}
+          style={{
+            position: "relative",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            height: 46,
+            padding: "0 22px",
+            borderRadius: 999,
+            background: "var(--color-brand)",
+            color: "#fff",
+            font: "var(--weight-bold) 15px/1 var(--font-sans)",
+            boxShadow: "var(--glow-red-sm)",
+            flexShrink: 0,
+          }}
+        >
+          <i data-lucide="download" style={{ width: 18, height: 18 }} /> Descargar Excel
+        </a>
+      </div>
+
+      {/* Tabla de contactos */}
+      <div style={{ minWidth: 0 }}>
+        <JobContactsTable job={job} initialContacts={contacts} noResults={noResults} />
       </div>
     </div>
   );

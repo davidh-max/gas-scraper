@@ -13,15 +13,20 @@ import type {
   ClientSettings,
   CompanyInsert,
   CompanyRow,
+  ContactFeedback,
   ContactRow,
   ContactStatus,
+  FeedbackReason,
   JobRow,
 } from "@/types/db";
 import {
   reviewReason,
   type CreateJobInput,
   type DataSource,
+  type ErrorRate,
+  type JobContact,
   type JobContext,
+  type NoResultCompany,
   type ReviewContact,
 } from "./source";
 
@@ -29,6 +34,16 @@ import {
 function normalizeClient(row: unknown): ClientRow {
   const c = row as ClientRow;
   return { ...c, settings: c.settings ?? {} };
+}
+
+function computeErrorRate(rows: Pick<ContactRow, "feedback">[]): ErrorRate {
+  const total = rows.length;
+  const invalid = rows.filter((r) => r.feedback === "no_valido").length;
+  return {
+    total,
+    invalid,
+    rate: total > 0 ? Math.round((invalid / total) * 1000) / 10 : 0,
+  };
 }
 
 export class SupabaseSource implements DataSource {
@@ -206,6 +221,92 @@ export class SupabaseSource implements DataSource {
 
   async updateClientSettings(id: string, settings: ClientSettings): Promise<void> {
     const { error } = await createClient().from("clients").update({ settings }).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async deleteClient(id: string): Promise<void> {
+    const supabase = createClient();
+    const { error: jobsError } = await supabase.from("jobs").delete().eq("client_id", id);
+    if (jobsError) throw new Error(jobsError.message);
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async getJobContacts(jobId: string): Promise<JobContact[]> {
+    const supabase = createClient();
+    const [{ data: contactsData }, { data: companiesData }] = await Promise.all([
+      supabase.from("contacts").select("*").eq("job_id", jobId).order("created_at"),
+      supabase.from("companies").select("id, razon_social, raw_input").eq("job_id", jobId),
+    ]);
+    const contacts = (contactsData ?? []) as ContactRow[];
+    const companyName = new Map(
+      ((companiesData ?? []) as CompanyRow[]).map((c) => [
+        c.id,
+        c.razon_social ?? c.raw_input ?? c.id,
+      ]),
+    );
+    return contacts.map((c) => ({ ...c, companyName: companyName.get(c.company_id) ?? "—" }));
+  }
+
+  async getJobNoResultCompanies(jobId: string): Promise<NoResultCompany[]> {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("companies")
+      .select("id, razon_social, raw_input, note")
+      .eq("job_id", jobId)
+      .eq("status", "no_result")
+      .order("created_at");
+    return ((data ?? []) as CompanyRow[]).map((c) => ({
+      companyId: c.id,
+      name: c.razon_social ?? c.raw_input ?? c.id,
+      note: c.note ?? null,
+    }));
+  }
+
+  async getGlobalErrorRate(): Promise<ErrorRate> {
+    // Universo = TODOS los contactos entregados (por defecto válidos); solo restan los
+    // marcados 'no_valido'. No filtramos por feedback_at: si lo hiciéramos, el primer
+    // contacto marcado como erróneo daría 100%.
+    const { data } = await createClient().from("contacts").select("feedback");
+    return computeErrorRate((data ?? []) as Pick<ContactRow, "feedback">[]);
+  }
+
+  async getClientErrorRate(clientId: string): Promise<ErrorRate> {
+    const supabase = createClient();
+    const { data: jobsData } = await supabase.from("jobs").select("id").eq("client_id", clientId);
+    const jobIds = ((jobsData ?? []) as { id: string }[]).map((j) => j.id);
+    if (jobIds.length === 0) return { total: 0, invalid: 0, rate: 0 };
+    const { data } = await supabase
+      .from("contacts")
+      .select("feedback")
+      .in("job_id", jobIds);
+    return computeErrorRate((data ?? []) as Pick<ContactRow, "feedback">[]);
+  }
+
+  async updateContactFeedback(
+    id: string,
+    feedback: ContactFeedback,
+    reason?: FeedbackReason | null,
+    note?: string | null,
+  ): Promise<void> {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Sesión requerida para guardar feedback.");
+    const updates: Record<string, unknown> = {
+      feedback,
+      feedback_at: new Date().toISOString(),
+      feedback_by: user.id,
+    };
+    if (feedback === "no_valido") {
+      updates.feedback_reason = reason ?? null;
+      updates.feedback_note = note?.trim() || null;
+    } else {
+      updates.feedback_reason = null;
+      updates.feedback_note = null;
+    }
+    const { error } = await supabase.from("contacts").update(updates).eq("id", id);
     if (error) throw new Error(error.message);
   }
 

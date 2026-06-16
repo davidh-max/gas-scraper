@@ -78,5 +78,37 @@
     "currentPositions": [{ "companyName": "TechCorp Sistemas", "title": "Head of IT", "current": true }],
     "location": { "linkedinText": "Valencia, Spain" },
     "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/tech-corp"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/sonia-marquez-corregida",
+    "firstName": "Sonia",
+    "lastName": "Márquez",
+    "currentPositions": [{ "companyName": "Empresa Corregida Real", "title": "Directora de Sistemas", "current": true }],
+    "location": { "linkedinText": "Madrid, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/empresa-corregida-real"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/jorge-ortega-respaldo",
+    "firstName": "Jorge",
+    "lastName": "Ortega",
+    "currentPositions": [{ "companyName": "Empresa Respaldo", "title": "CEO", "current": true }],
+    "location": { "linkedinText": "Barcelona, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/empresa-respaldo"] }, "_fixture_pass": "backup_a" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/beatriz-cio-amadeus",
+    "firstName": "Beatriz",
+    "lastName": "Méndez-Villamil",
+    "currentPositions": [{ "companyName": "VerifyCo", "title": "Coordinadora de Sistemas", "current": true }],
+    "location": { "linkedinText": "Madrid, Spain" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/verifyco"] }, "_fixture_pass": "A" }
+  },
+  {
+    "linkedinUrl": "https://www.linkedin.com/in/john-london-cto",
+    "firstName": "John",
+    "lastName": "Smith",
+    "currentPositions": [{ "companyName": "VerifyCo", "title": "Coordinador de IT", "current": true }],
+    "location": { "linkedinText": "London, United Kingdom" },
+    "_meta": { "query": { "currentCompanies": ["https://www.linkedin.com/company/verifyco"] }, "_fixture_pass": "A" }
   }
 ]

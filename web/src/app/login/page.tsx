@@ -1,20 +1,52 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button, Checkbox, Input } from "@/ds";
 import { setMode } from "@/lib/actions";
 import { createClient } from "@/lib/supabaseClient";
 
+function errorMessage(searchParams: ReturnType<typeof useSearchParams>): string | null {
+  const code = searchParams.get("error");
+  const email = searchParams.get("email");
+  if (code === "domain") {
+    return email
+      ? `Solo pueden acceder cuentas @gascoolcalling.com o @aszendit.com. La cuenta ${email} no está autorizada.`
+      : "Solo pueden acceder cuentas @gascoolcalling.com o @aszendit.com.";
+  }
+  if (code === "oauth") {
+    return "No se pudo completar el inicio de sesión con Google. Inténtalo de nuevo.";
+  }
+  return null;
+}
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(errorMessage(searchParams));
   const [loading, setLoading] = useState(false);
+  const [googlePending, startGoogle] = useTransition();
   const [demoPending, startDemo] = useTransition();
+
+  async function signInWithGoogle() {
+    startGoogle(async () => {
+      setError(null);
+      const supabase = createClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (oauthError) {
+        setError(oauthError.message);
+      }
+    });
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -145,10 +177,28 @@ export default function LoginPage() {
             {error && (
               <p style={{ margin: 0, font: "var(--weight-medium) 13px/1.4 var(--font-sans)", color: "var(--color-danger)" }}>{error}</p>
             )}
-            <Button variant="primary" size="lg" icon="flame" fullWidth type="submit" disabled={loading}>
+            <Button variant="primary" size="lg" icon="flame" fullWidth type="submit" disabled={loading || googlePending || demoPending}>
               {loading ? "Entrando…" : "Entrar en flowstate"}
             </Button>
           </form>
+
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            type="button"
+            onClick={signInWithGoogle}
+            disabled={googlePending || demoPending}
+            style={{ marginTop: 12 }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width={20} height={20} style={{ display: "block", flexShrink: 0 }}>
+              <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+              <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+              <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+              <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
+            </svg>
+            {googlePending ? "Conectando con Google…" : "Continuar con Google"}
+          </Button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0" }}>
             <span style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
@@ -158,7 +208,7 @@ export default function LoginPage() {
             <span style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
           </div>
 
-          <Button variant="secondary" size="lg" icon="flask-conical" fullWidth type="button" onClick={enterDemo} disabled={demoPending}>
+          <Button variant="ghost" size="lg" icon="flask-conical" fullWidth type="button" onClick={enterDemo} disabled={demoPending}>
             {demoPending ? "Abriendo demo…" : "Explorar en modo MockData"}
           </Button>
 

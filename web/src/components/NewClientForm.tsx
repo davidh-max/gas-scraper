@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button, Input } from "@/ds";
 import { createClientRecord } from "@/lib/actions";
@@ -10,16 +10,20 @@ export function NewClientForm() {
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <form
+      ref={formRef}
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
       action={async (fd) => {
+        if (pending) return;
         setPending(true);
         setError(null);
         try {
           await createClientRecord(fd);
           setName("");
+          formRef.current?.reset();
         } catch (e) {
           setError(e instanceof Error ? e.message : "No se pudo crear el cliente.");
         } finally {

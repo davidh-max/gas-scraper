@@ -89,17 +89,14 @@ class ApifyClient:
         return len(items) > 0
 
     def run_employees(self, run_input: dict[str, Any]) -> list[dict[str, Any]]:
-        """Lanza UNA pasada del Actor de empleados y devuelve los items del dataset."""
+        """Lanza UNA pasada del Actor de empleados y devuelve los items del dataset.
+
+        UNA sola llamada por pasada (todas las URLs en `companies`, one_by_one). Se
+        leen los items con `omit` (regla de oro: la proyección con `fields` rompe
+        arrays anidados como `currentPositions`).
+        """
         self._assert_golden_rules(run_input)
-        url = (
-            f"{APIFY_BASE}/acts/{self.employees_actor_id}"
-            f"/run-sync-get-dataset-items?token={self.token}&omit={DATASET_OMIT}"
-        )
-        # La llamada está implementada pero NO verificada en esta tanda.
-        raise NotImplementedError(
-            "Live Apify path no verificado en esta tanda. Usar --use-fixtures. "
-            f"(POST listo a {url.split('?')[0]})"
-        )
+        return self.run_actor_sync(self.employees_actor_id, run_input, omit=DATASET_OMIT)
 
     def _http(self) -> httpx.Client:
         if self._http_cache is None:

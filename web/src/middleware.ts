@@ -11,6 +11,7 @@ type CookieToSet = { name: string; value: string; options: CookieOptions };
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isLogin = pathname.startsWith("/login");
+  const isAuthCallback = pathname.startsWith("/auth/callback");
 
   // Modo MockData: navegación libre sin sesión.
   if (request.cookies.get("gas_mode")?.value === "mock") {
@@ -20,7 +21,7 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseKey) {
-    if (isLogin) return NextResponse.next();
+    if (isLogin || isAuthCallback) return NextResponse.next();
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -47,7 +48,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && !isLogin) {
+  if (!user && !isLogin && !isAuthCallback) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

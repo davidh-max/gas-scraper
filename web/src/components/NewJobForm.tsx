@@ -178,6 +178,7 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
   return (
     <form
       action={async (fd) => {
+        if (pending) return;
         setPending(true);
         setError(null);
         try {

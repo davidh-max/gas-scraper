@@ -5,18 +5,23 @@ import { JobProgress } from "@/components/JobProgress";
 import { ResultsView } from "@/components/ResultsView";
 import { getDataSource } from "@/lib/data";
 import { getMode } from "@/lib/data/mode";
-import { mockExcelPreview } from "@/lib/data/mockSeed";
 
 export const dynamic = "force-dynamic";
 
 export default async function JobPage({ params }: { params: { id: string } }) {
   const mode = getMode();
-  const ctx = await getDataSource().getJobContext(params.id);
+  const data = getDataSource();
+  const ctx = await data.getJobContext(params.id);
   if (!ctx) notFound();
 
   const { job, client, area, backupArea } = ctx;
   const clientName = client?.name ?? "—";
   const areaName = area?.name ?? "—";
+
+  const isDone = job.status === "done";
+  const [contacts, noResults] = isDone
+    ? await Promise.all([data.getJobContacts(job.id), data.getJobNoResultCompanies(job.id)])
+    : [[], []];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -35,12 +40,13 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         <i data-lucide="arrow-left" style={{ width: 16, height: 16 }} /> Panel
       </Link>
 
-      {job.status === "done" ? (
+      {isDone ? (
         <ResultsView
           job={job}
           clientName={clientName}
           areaName={areaName}
-          preview={mode === "mock" ? mockExcelPreview : []}
+          contacts={contacts}
+          noResults={noResults}
         />
       ) : (
         <JobProgress

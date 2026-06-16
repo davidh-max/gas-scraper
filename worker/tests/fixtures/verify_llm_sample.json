@@ -1,0 +1,29 @@
+{
+  "beatriz-cio-amadeus": {
+    "verdict": "confirmed",
+    "confidence": 0.97,
+    "es_decisor_area": true,
+    "cargo_actual_detectado": "Global CIO at Amadeus",
+    "empresa_coincide": "si",
+    "ubicacion_ok": true,
+    "motivo": "Global CIO de Amadeus (companyId 2780 coincide), máxima responsable de IT, ubicada en Madrid, España."
+  },
+  "pedro-ventas-it": {
+    "verdict": "uncertain",
+    "confidence": 0.6,
+    "es_decisor_area": false,
+    "cargo_actual_detectado": "Sales Manager",
+    "empresa_coincide": "si",
+    "ubicacion_ok": true,
+    "motivo": "Cargo de ventas en la empresa objetivo; no decide en IT. Lo revisa una persona."
+  },
+  "john-london-cto": {
+    "verdict": "rejected",
+    "confidence": 0.9,
+    "es_decisor_area": true,
+    "cargo_actual_detectado": "CTO at Amadeus UK",
+    "empresa_coincide": "si",
+    "ubicacion_ok": false,
+    "motivo": "Perfil de IT senior pero ubicado en Londres (Reino Unido), fuera de España."
+  }
+}

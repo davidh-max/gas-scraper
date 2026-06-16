@@ -61,9 +61,21 @@ export function isProcessing(status: JobStatus): boolean {
   return PROCESSING.has(status);
 }
 
-// % de avance aproximado de un job en proceso (empresas resueltas / total).
+// % de avance aproximado de la barra, POR FASE. El worker actualiza `jobs.status` en
+// cada fase (resolving→searching→verifying→done) en tiempo real, así que la barra
+// avanza conforme el job cambia de fase. NO usamos resolved/total: el worker solo
+// escribe los contadores al terminar (por eso antes se quedaba clavado en 0%).
+const PHASE_PCT: Partial<Record<JobStatus, number>> = {
+  queued: 4,
+  resolving: 25,
+  searching: 60,
+  verifying: 85,
+  enriching: 92, // legado: el flujo ya no pasa por aquí
+  done: 100,
+};
+
 export function jobProgressPct(job: JobRow): number {
   if (job.status === "done") return 100;
-  if (job.total_companies <= 0) return 0;
-  return Math.round((job.resolved_companies / job.total_companies) * 100);
+  if (job.status === "error" || job.status === "cancelled") return 0;
+  return PHASE_PCT[job.status] ?? 0;
 }

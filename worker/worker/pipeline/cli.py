@@ -4,7 +4,8 @@
         --area it --use-fixtures
 
 Con `--use-fixtures` no se llama a Apify ni a Supabase: la búsqueda lee los
-fixtures locales. Genera un .xlsx de 3 hojas e imprime un resumen JSON.
+fixtures locales. Sin ese flag usa Apify/OpenRouter reales (lee worker/.env).
+Genera un .xlsx de 3 hojas e imprime un resumen JSON.
 """
 
 from __future__ import annotations
@@ -12,10 +13,16 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+from .apify.client import ApifyClient
 from .area_profiles import load_area_profile
+from .harvest import HarvestClient
+from .llm.openrouter import OpenRouterClient
 from .models import Company, JobStatus
 from .pipeline import run_pipeline
 
@@ -62,12 +69,40 @@ def cmd_run(args: argparse.Namespace) -> int:
         load_area_profile(args.backup, use_fixtures=args.use_fixtures) if args.backup else None
     )
 
+    # Clientes reales solo en modo live.
+    apify_client: ApifyClient | None = None
+    llm_client: OpenRouterClient | None = None
+    harvest_client: HarvestClient | None = None
+    if not args.use_fixtures:
+        env_path = Path(__file__).resolve().parents[2] / ".env"
+        load_dotenv(env_path)
+        apify_client = ApifyClient(
+            token=os.environ["APIFY_TOKEN"],
+            employees_actor_id=os.environ["APIFY_EMPLOYEES_ACTOR_ID"],
+            company_url_finder_actor_id=os.environ["APIFY_COMPANY_URL_FINDER_ACTOR_ID"],
+        )
+        llm_client = OpenRouterClient(
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            model=os.environ.get("OPENROUTER_MODEL", "google/gemini-3.1-flash-lite-preview"),
+        )
+        # HarvestAPI (Paso 3 verify) es opcional: sin clave, los dudosos quedan en
+        # `revisar` (uncertain) sin verificar por LLM, pero el lote no se rompe.
+        harvest_key = os.environ.get("HARVEST_API_KEY", "")
+        if harvest_key:
+            harvest_client = HarvestClient(
+                api_key=harvest_key,
+                base_url=os.environ.get("HARVEST_API_BASE_URL", "https://api.harvest-api.com"),
+            )
+
     result = run_pipeline(
         companies,
         area,
         backup_area=backup,
         use_fixtures=args.use_fixtures,
         fixtures_dir=FIXTURES_DIR if args.use_fixtures else None,
+        apify_client=apify_client,
+        llm_client=llm_client,
+        harvest_client=harvest_client,
         on_event=_print_event,
     )
 

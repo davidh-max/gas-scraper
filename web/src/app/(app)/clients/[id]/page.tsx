@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { StatCard } from "@/ds";
 import { ClientAvatar } from "@/components/ClientAvatar";
 import { ClientSettingsForm } from "@/components/ClientSettingsForm";
+import { DeleteClientButton } from "@/components/DeleteClientButton";
 import { LinkButton } from "@/components/LinkButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getDataSource } from "@/lib/data";
@@ -125,9 +126,12 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--cyan-500)" }} /> En curso
           </span>
         )}
-        <LinkButton href="/jobs/new" variant="dark" icon="plus">
-          Nuevo job
-        </LinkButton>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <DeleteClientButton clientId={client.id} clientName={client.name} />
+          <LinkButton href="/jobs/new" variant="dark" icon="plus">
+            Nuevo job
+          </LinkButton>
+        </div>
       </div>
 
       {/* KPIs del cliente */}
