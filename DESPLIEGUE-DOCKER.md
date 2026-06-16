@@ -5,7 +5,7 @@ Esta guía asume que los archivos Docker (`Dockerfile`, `docker-compose.yml`, `C
 `.dockerignore`) ya están en el repositorio. Si hubiera que modificarlos, se hace en el
 propio repo, no manualmente en el servidor.
 
-**TL;DR para expertos:**
+**TL;DR para servidores directos (Caddy gestiona HTTPS):**
 
 ```bash
 cd <repo>/
@@ -13,6 +13,16 @@ cp .env.example .env              # edita con tus NEXT_PUBLIC_*
 cp worker/.env.example worker/.env # edita con tus secretos
 nano Caddyfile                    # cambia el dominio y el email
 docker compose up -d --build
+```
+
+**TL;DR si tienes un Load Balancer/TLS externo:**
+
+```bash
+cd <repo>/
+cp .env.example .env              # edita con tus NEXT_PUBLIC_*
+cp worker/.env.example worker/.env # edita con tus secretos
+docker compose -f docker-compose.lb.yml up -d --build
+# El LB debe apuntar al puerto 3000 de la VM y usar /api/health como health check.
 ```
 
 ---
@@ -52,6 +62,42 @@ En el servidor levantaremos **tres contenedores** con un único comando:
 **Caddy** es la pieza nueva: es un servidor que se pone delante de la web, gestiona el
 dominio y saca **certificado HTTPS gratis y automático** (Let's Encrypt). Tú solo le dices
 tu dominio y él se encarga del candado.
+
+### Opción alternativa: detrás de un Load Balancer
+
+Si tu infraestructura ya tiene un Load Balancer que gestiona TLS/HTTPS (por ejemplo en
+Google Cloud, AWS ALB, Cloudflare, etc.), **no necesitas Caddy**. El LB se encarga del
+HTTPS y del certificado, y solo tiene que mandar tráfico HTTP a la VM donde corre Docker.
+
+En ese caso usamos `docker-compose.lb.yml`:
+
+```
+                    Internet (tu dominio, https://gas.tudominio.com)
+                               │
+                               ▼
+                      ┌─────────────────┐
+                      │  Load Balancer  │  ← HTTPS + certificado gestionado por el LB
+                      └────────┬────────┘
+                               │ (HTTP interno)
+                               ▼
+                      ┌─────────────────┐
+                      │   VM / Docker   │
+                      │    ┌───────┐    │
+                      │    │  web  │    │  ← Next.js, puerto 3000 expuesto internamente
+                      │    └───┬───┘    │
+                      │    ┌───────┐    │
+                      │    │ worker│    │  ← Python en bucle. Sin puertos.
+                      │    └───────┘    │
+                      └─────────────────┘
+```
+
+Ventajas:
+- No dependes de que Caddy saque certificado de Let's Encrypt.
+- El LB hace el health check sobre `/api/health`.
+- El `docker-compose.lb.yml` expone la web en el puerto 3000 de la interfaz local
+  (`127.0.0.1:3000`) o de una interfaz privada, para que solo el LB pueda llegar.
+
+Si usas esta opción, salta directamente a la sección **5B**.
 
 ---
 
@@ -207,6 +253,88 @@ HTTPS. El worker, mientras, ya estará escuchando jobs de Supabase (no verás na
 pero en `docker compose logs -f worker` verás "No hay jobs 'queued'." en bucle, que es lo
 normal cuando está a la espera).
 
+---
+
+## 5B. Variante con Load Balancer (TLS externo)
+
+Si tu infraestructura ya tiene un Load Balancer que gestiona HTTPS, usa este camino en
+lugar de Caddy.
+
+### Paso 0 — Configurar el Load Balancer
+
+- Crea un **backend** / **service** que apunte a la IP privada de la VM donde corre Docker,
+  puerto **3000**.
+- Configura el **health check** del LB contra `http://<VM>:3000/api/health`. Espera respuesta
+  HTTP 200.
+- El LB debe terminar TLS: el tráfico entre Internet y el LB es HTTPS, y entre el LB y la
+  VM es HTTP al puerto 3000.
+- Asegúrate de que el firewall del LB/la red interna permite tráfico del LB a la VM en el
+  puerto 3000.
+
+### Paso 1 — Preparar la VM
+
+Entra por SSH y asegúrate de que Docker está instalado (ver Paso 2 de la sección 5).
+
+### Paso 2 — Traer el código y configurar secretos
+
+```bash
+git clone <url-de-tu-repo> gas
+cd gas
+
+cp .env.example .env
+nano .env
+# Rellena NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+cp worker/.env.example worker/.env
+nano worker/.env
+# Rellena los secretos del worker
+```
+
+**No necesitas tocar el `Caddyfile`** en esta variante.
+
+### Paso 3 — Levantar con docker-compose.lb.yml
+
+```bash
+docker compose -f docker-compose.lb.yml up -d --build
+```
+
+Esto levanta solo `web` (puerto 3000) y `worker`. Comprueba que están running:
+
+```bash
+docker compose -f docker-compose.lb.yml ps
+docker compose -f docker-compose.lb.yml logs -f web
+docker compose -f docker-compose.lb.yml logs -f worker
+```
+
+Comprueba que el health check responde desde la propia VM:
+
+```bash
+curl http://localhost:3000/api/health
+# Debe devolver: {"status":"ok","service":"gas-web",...}
+```
+
+Cuando el LB vea el health check verde, empezará a mandar tráfico HTTPS a la app.
+
+### Paso 4 — Firewall en la VM
+
+```bash
+ufw allow 22/tcp     # SSH
+ufw allow from <IP-del-LB> to any port 3000  # solo el LB puede hablar con la web
+ufw enable
+```
+
+Si no sabes la IP del LB, una alternativa rápida es limitar la red interna:
+```bash
+ufw allow 22/tcp
+# Asegúrate de que la interfaz donde escucha Docker (generalmente docker0) puede seguir
+# hablando; ufw por defecto no bloquea el tráfico local entre contenedores.
+```
+
+**Importante:** no expongas el puerto 3000 a Internet directamente; debe ser accesible solo
+desde el Load Balancer.
+
+---
+
 ### Paso 6 — Firewall (recomendado)
 
 ```bash
@@ -246,6 +374,8 @@ el script oficial.)
 
 ## 7. Checklist antes de dar por hecho el despliegue
 
+### Opción Caddy (servidor directo)
+
 - [x] Los archivos Docker (`Dockerfile` web/worker, `docker-compose.yml`, `Caddyfile`,
       `.dockerignore`) existen en el repo.
 - [ ] El DNS `gas.tudominio.com` → IP del VPS responde.
@@ -255,6 +385,19 @@ el script oficial.)
 - [ ] `https://gas.tudominio.com` carga con candado.
 - [ ] `docker compose logs -f worker` muestra el bucle de polling sin errores.
 - [ ] Firewall con 22, 80 y 443 abiertos; 3000 cerrado.
+
+### Opción Load Balancer (TLS externo)
+
+- [x] `docker-compose.lb.yml` y endpoint `/api/health` existen en el repo.
+- [ ] Backend/Service del LB apunta a la VM en el puerto 3000.
+- [ ] Health check del LB configurado contra `http://<VM>:3000/api/health` (HTTP 200).
+- [ ] `worker/.env` y `.env` (raíz) creados en el servidor con claves reales.
+- [ ] `docker compose -f docker-compose.lb.yml up -d --build` deja `web` y `worker` en `running`.
+- [ ] Desde la VM, `curl http://localhost:3000/api/health` responde OK.
+- [ ] El LB marca el backend como sano/verde.
+- [ ] `https://gas.tudominio.com` carga a través del LB.
+- [ ] `docker compose -f docker-compose.lb.yml logs -f worker` muestra polling sin errores.
+- [ ] Puerto 3000 de la VM accesible solo desde el LB, no desde Internet.
 
 ---
 

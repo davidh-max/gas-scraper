@@ -1,0 +1,35 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    container_name: gas-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - gas-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: gas-worker
+    restart: unless-stopped
+    env_file:
+      - worker/.env
+    networks:
+      - gas-network
+
+networks:
+  gas-network:
+    driver: bridge
