@@ -7,7 +7,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY web/package.json web/package-lock.json* ./
-RUN npm ci --only=production
+# IMPORTANTE: Next.js necesita typescript y @types/* (devDependencies) para build.
+# Las devDependencies no llegan a la imagen final, solo al builder.
+RUN npm ci
 
 # ---- Builder ----
 FROM base AS builder
