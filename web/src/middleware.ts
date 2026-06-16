@@ -63,6 +63,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // protege todo excepto assets estáticos (la descarga también exige sesión)
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // protege todo excepto assets estáticos y el health check del LB
+  matcher: ["/((?!api/health|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
