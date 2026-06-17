@@ -25,11 +25,12 @@ function normalizeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-export default async function ClientDetailPage({ params }: { params: { id: string } }) {
+export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const data = await getDataSource();
   const [client, jobs, areas] = await Promise.all([
-    data.getClient(params.id),
-    data.getJobsByClient(params.id),
+    data.getClient(id),
+    data.getJobsByClient(id),
     data.getAreas(),
   ]);
   if (!client) notFound();

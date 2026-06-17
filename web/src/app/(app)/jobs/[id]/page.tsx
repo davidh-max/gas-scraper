@@ -9,10 +9,11 @@ import { getMode } from "@/lib/data/mode";
 export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
-export default async function JobPage({ params }: { params: { id: string } }) {
+export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const mode = await getMode();
   const data = await getDataSource();
-  const ctx = await data.getJobContext(params.id);
+  const ctx = await data.getJobContext(id);
   if (!ctx) notFound();
 
   const { job, client, area, backupArea } = ctx;

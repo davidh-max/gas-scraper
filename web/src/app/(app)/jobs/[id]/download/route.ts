@@ -10,7 +10,9 @@ export const runtime = "edge";
 // Descarga el Excel del job desde Storage (bucket privado `resultados`).
 // Requiere sesión (middleware) y la policy de storage para `authenticated`.
 // En modo MockData no hay Storage: se devuelve un aviso.
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
   if (await getMode() === "mock") {
     return new NextResponse("Descarga no disponible en modo MockData (datos de demostración).", {
       status: 200,
@@ -21,7 +23,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   const { createClient } = await import("@/lib/supabaseServer");
   const supabase = await createClient();
 
-  const { data } = await supabase.from("jobs").select("*").eq("id", params.id).single();
+  const { data } = await supabase.from("jobs").select("*").eq("id", id).single();
   const job = data as JobRow | null;
   if (!job?.result_path) {
     return new NextResponse("Resultado no disponible.", { status: 404 });
@@ -36,7 +38,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   return new NextResponse(buffer, {
     headers: {
       "content-type": XLSX_MIME,
-      "content-disposition": `attachment; filename="GAS_${params.id.slice(0, 8)}.xlsx"`,
+      "content-disposition": `attachment; filename="GAS_${id.slice(0, 8)}.xlsx"`,
     },
   });
 }
