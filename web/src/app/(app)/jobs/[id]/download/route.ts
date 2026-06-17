@@ -5,6 +5,8 @@ import type { JobRow } from "@/types/db";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+export const runtime = "edge";
+
 // Descarga el Excel del job desde Storage (bucket privado `resultados`).
 // Requiere sesión (middleware) y la policy de storage para `authenticated`.
 // En modo MockData no hay Storage: se devuelve un aviso.

@@ -2,6 +2,7 @@ import { ReviewRow, REVIEW_COLUMNS } from "@/components/ReviewRow";
 import { getDataSource } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function ReviewPage() {
   const contacts = await getDataSource().getReviewContacts();

@@ -3,6 +3,7 @@ import { LinkButton } from "@/components/LinkButton";
 import { getDataSource } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function NewJobPage() {
   const data = getDataSource();

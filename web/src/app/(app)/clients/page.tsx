@@ -6,6 +6,7 @@ import { getDataSource } from "@/lib/data";
 import { clientStats } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function ClientsPage() {
   const data = getDataSource();

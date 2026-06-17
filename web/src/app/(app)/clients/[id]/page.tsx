@@ -11,6 +11,7 @@ import { getDataSource } from "@/lib/data";
 import { isProcessing, jobKpis, jobProgressPct } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 const JOBS_GRID = "1fr 1.3fr 1fr 52px 52px 52px 28px";
 

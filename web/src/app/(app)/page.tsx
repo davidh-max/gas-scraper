@@ -7,6 +7,7 @@ import { jobKpis } from "@/lib/dashboard";
 import type { ErrorRate } from "@/lib/data/source";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function DashboardPage() {
   const data = getDataSource();

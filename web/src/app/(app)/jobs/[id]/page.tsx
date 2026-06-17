@@ -7,6 +7,7 @@ import { getDataSource } from "@/lib/data";
 import { getMode } from "@/lib/data/mode";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function JobPage({ params }: { params: { id: string } }) {
   const mode = getMode();
