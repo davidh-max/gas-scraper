@@ -98,7 +98,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async getJobContext(id: string): Promise<JobContext | null> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: jobData } = await supabase.from("jobs").select("*").eq("id", id).single();
     if (!jobData) return null;
     const job = jobData as JobRow;
@@ -120,7 +120,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async getReviewContacts(limit = 200): Promise<ReviewContact[]> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: contactsData } = await supabase
       .from("contacts")
       .select("*")
@@ -157,7 +157,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async createJob(input: CreateJobInput): Promise<string> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -188,7 +188,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async createClientRecord(name: string): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -225,7 +225,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async deleteClient(id: string): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { error: jobsError } = await supabase.from("jobs").delete().eq("client_id", id);
     if (jobsError) throw new Error(jobsError.message);
     const { error } = await supabase.from("clients").delete().eq("id", id);
@@ -233,7 +233,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async getJobContacts(jobId: string): Promise<JobContact[]> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const [{ data: contactsData }, { data: companiesData }] = await Promise.all([
       supabase.from("contacts").select("*").eq("job_id", jobId).order("created_at"),
       supabase.from("companies").select("id, razon_social, raw_input").eq("job_id", jobId),
@@ -249,7 +249,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async getJobNoResultCompanies(jobId: string): Promise<NoResultCompany[]> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data } = await supabase
       .from("companies")
       .select("id, razon_social, raw_input, note")
@@ -272,7 +272,7 @@ export class SupabaseSource implements DataSource {
   }
 
   async getClientErrorRate(clientId: string): Promise<ErrorRate> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: jobsData } = await supabase.from("jobs").select("id").eq("client_id", clientId);
     const jobIds = ((jobsData ?? []) as { id: string }[]).map((j) => j.id);
     if (jobIds.length === 0) return { total: 0, invalid: 0, rate: 0 };
@@ -289,7 +289,7 @@ export class SupabaseSource implements DataSource {
     reason?: FeedbackReason | null,
     note?: string | null,
   ): Promise<void> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

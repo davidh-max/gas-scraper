@@ -26,7 +26,7 @@ function normalizeUrl(url: string): string {
 }
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
-  const data = getDataSource();
+  const data = await getDataSource();
   const [client, jobs, areas] = await Promise.all([
     data.getClient(params.id),
     data.getJobsByClient(params.id),

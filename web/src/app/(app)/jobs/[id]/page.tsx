@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
 export default async function JobPage({ params }: { params: { id: string } }) {
-  const mode = getMode();
-  const data = getDataSource();
+  const mode = await getMode();
+  const data = await getDataSource();
   const ctx = await data.getJobContext(params.id);
   if (!ctx) notFound();
 

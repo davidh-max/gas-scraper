@@ -7,8 +7,8 @@ import { MockSource } from "./mockSource";
 import { SupabaseSource } from "./supabaseSource";
 import type { DataSource } from "./source";
 
-export function getDataSource(): DataSource {
-  return getMode() === "mock" ? new MockSource() : new SupabaseSource();
+export async function getDataSource(): Promise<DataSource> {
+  return (await getMode()) === "mock" ? new MockSource() : new SupabaseSource();
 }
 
 export type { DataSource, ReviewContact, JobContext, CreateJobInput } from "./source";

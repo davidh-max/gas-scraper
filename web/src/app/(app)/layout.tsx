@@ -7,8 +7,8 @@ import { getMode } from "@/lib/data/mode";
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const mode = getMode();
-  const data = getDataSource();
+  const mode = await getMode();
+  const data = await getDataSource();
   const [reviewPending, clients] = await Promise.all([
     data.getReviewPendingCount(),
     data.getActiveClients(),
@@ -22,9 +22,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } else {
     try {
       const { createClient } = await import("@/lib/supabaseServer");
+      const supabase = await createClient();
       const {
         data: { user },
-      } = await createClient().auth.getUser();
+      } = await supabase.auth.getUser();
       if (user?.email) {
         userName = user.email.split("@")[0] ?? user.email;
         userMeta = user.email;

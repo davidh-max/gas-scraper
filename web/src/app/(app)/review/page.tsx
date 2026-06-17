@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
 export default async function ReviewPage() {
-  const contacts = await getDataSource().getReviewContacts();
+  const contacts = await (await getDataSource()).getReviewContacts();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

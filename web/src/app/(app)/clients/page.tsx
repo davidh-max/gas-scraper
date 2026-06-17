@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
 export default async function ClientsPage() {
-  const data = getDataSource();
+  const data = await getDataSource();
   const [clients, jobs] = await Promise.all([data.getClients(), data.getJobs()]);
   const stats = clientStats(clients, jobs);
 

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
 export default async function NewJobPage() {
-  const data = getDataSource();
+  const data = await getDataSource();
   const [clients, areas] = await Promise.all([data.getActiveClients(), data.getActiveAreas()]);
   const ready = clients.length > 0 && areas.length > 0;
 

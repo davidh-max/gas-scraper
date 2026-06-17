@@ -11,7 +11,7 @@ export const runtime = "edge";
 // Requiere sesión (middleware) y la policy de storage para `authenticated`.
 // En modo MockData no hay Storage: se devuelve un aviso.
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
-  if (getMode() === "mock") {
+  if (await getMode() === "mock") {
     return new NextResponse("Descarga no disponible en modo MockData (datos de demostración).", {
       status: 200,
       headers: { "content-type": "text/plain; charset=utf-8" },
@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   }
 
   const { createClient } = await import("@/lib/supabaseServer");
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data } = await supabase.from("jobs").select("*").eq("id", params.id).single();
   const job = data as JobRow | null;
