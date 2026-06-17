@@ -4,6 +4,7 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
 
 [vars]
-# Estas variables se pueden sobreescribir en Cloudflare Pages > Settings > Environment variables.
+# Clave publishable de Supabase: es PÚBLICA por diseño (viaja al navegador), no es un secreto.
+# Se pueden sobreescribir en Cloudflare Pages > Settings > Environment variables.
 NEXT_PUBLIC_SUPABASE_URL = "https://ftpgnimyjxlomjfdqfqy.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_xxxxxxxxxxxxxxxxxxxx"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_jdfzUeLNa5mFLwvlviJO_w_G-CdFxKI"
