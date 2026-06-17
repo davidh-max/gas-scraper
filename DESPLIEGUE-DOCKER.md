@@ -1,107 +1,161 @@
-# Desplegar GAS en un servidor con Docker
+# Desplegar GAS
 
-Guía para llevar GAS de tu portátil a un VPS, dockerizado y con HTTPS automático.
-Esta guía asume que los archivos Docker (`Dockerfile`, `docker-compose.yml`, `Caddyfile`,
-`.dockerignore`) ya están en el repositorio. Si hubiera que modificarlos, se hace en el
-propio repo, no manualmente en el servidor.
+Guía para desplegar GAS. El camino **recomendado y más sencillo** es:
 
-**TL;DR para servidores directos (Caddy gestiona HTTPS):**
+- **Cloudflare Pages** para la web (Next.js).
+- **Railway** para el worker Python.
+- **Supabase** ya está en la nube y no cambia.
 
-```bash
-cd <repo>/
-cp .env.example .env              # edita con tus NEXT_PUBLIC_*
-cp worker/.env.example worker/.env # edita con tus secretos
-nano Caddyfile                    # cambia el dominio y el email
-docker compose up -d --build
-```
-
-**TL;DR si tienes un Load Balancer/TLS externo:**
-
-```bash
-cd <repo>/
-cp .env.example .env              # edita con tus NEXT_PUBLIC_*
-cp worker/.env.example worker/.env # edita con tus secretos
-docker compose -f docker-compose.lb.yml up -d --build
-# El LB debe apuntar al puerto 3000 de la VM y usar /api/health como health check.
-```
+También dejamos documentadas las alternativas con **Docker en VPS** (Caddy o Load Balancer)
+por si en el futuro quieres volver a ellas.
 
 ---
 
-## 1. Qué vamos a montar
+## TL;DR — Cloudflare Pages + Railway (recomendado)
 
-Tu app tiene dos piezas que solo se hablan a través de Supabase (que vive en la nube de
-Supabase, así que **no se dockeriza**):
+1. Conectar el repo de GitHub a **Cloudflare Pages**.
+2. Configurar el build:
+   - Framework preset: None / o el que detecte.
+   - Build command: `npm run pages:build`
+   - Build output directory: `.vercel/output/static`
+   - Root directory: `web`
+3. Añadir variables de entorno en Cloudflare Pages:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Crear proyecto en **Railway** y conectar el mismo repo.
+   - Seleccionar como servicio el `worker/Dockerfile`.
+   - Añadir variables de entorno desde `worker/.env.example`.
+5. En tu DNS (Namecheap) apunta `fknscraper.gascoolcalling.com` a Cloudflare Pages.
 
-- **web/** — la interfaz (Next.js 14). Es lo que abre la gente en el navegador.
-- **worker/** — un proceso Python que corre en bucle, coge los jobs `queued` de Supabase
-  y los procesa. No tiene web, no abre ningún puerto: solo trabaja.
+Listo. HTTPS, caché global y CI/CD automáticos sin tocar servidores.
 
-En el servidor levantaremos **tres contenedores** con un único comando:
+---
 
-```
-                    Internet (tu dominio, https://gas.tudominio.com)
-                              │
-                              ▼
-                     ┌─────────────────┐
-                     │     caddy       │  ← reverse proxy: HTTPS automático (puertos 80/443)
-                     └────────┬────────┘
-                              │ (red interna de Docker)
-                              ▼
-                     ┌─────────────────┐
-                     │      web        │  ← Next.js, puerto 3000 (NO expuesto a Internet)
-                     └─────────────────┘
+> **Nota:** si prefieres la opción Docker/VPS, sigue a partir de la sección "Alternativa: Docker en VPS".
 
-                     ┌─────────────────┐
-                     │     worker      │  ← Python en bucle. Sin puertos. Solo procesa jobs.
-                     └─────────────────┘
-                              │
-                              ▼
-              Supabase (nube)  +  Apify / OpenRouter / HarvestAPI  (APIs externas)
-```
+---
 
-**Caddy** es la pieza nueva: es un servidor que se pone delante de la web, gestiona el
-dominio y saca **certificado HTTPS gratis y automático** (Let's Encrypt). Tú solo le dices
-tu dominio y él se encarga del candado.
-
-### Opción alternativa: detrás de un Load Balancer
-
-Si tu infraestructura ya tiene un Load Balancer que gestiona TLS/HTTPS (por ejemplo en
-Google Cloud, AWS ALB, Cloudflare, etc.), **no necesitas Caddy**. El LB se encarga del
-HTTPS y del certificado, y solo tiene que mandar tráfico HTTP a la VM donde corre Docker.
-
-En ese caso usamos `docker-compose.lb.yml`:
+## 1. Arquitectura Cloudflare Pages + Railway
 
 ```
-                    Internet (tu dominio, https://gas.tudominio.com)
+                    Internet (https://gas.tudominio.com)
                                │
                                ▼
                       ┌─────────────────┐
-                      │  Load Balancer  │  ← HTTPS + certificado gestionado por el LB
+                      │ Cloudflare Pages│  ← Next.js, HTTPS automático, CDN global
                       └────────┬────────┘
-                               │ (HTTP interno)
+                               │
                                ▼
                       ┌─────────────────┐
-                      │   VM / Docker   │
-                      │    ┌───────┐    │
-                      │    │  web  │    │  ← Next.js, puerto 3000 expuesto internamente
-                      │    └───┬───┘    │
-                      │    ┌───────┐    │
-                      │    │ worker│    │  ← Python en bucle. Sin puertos.
-                      │    └───────┘    │
+                      │    Supabase     │  ← Auth + Postgres + Storage
+                      └─────────────────┘
+
+                      ┌─────────────────┐
+                      │     Railway     │  ← Worker Python en Docker
                       └─────────────────┘
 ```
 
-Ventajas:
-- No dependes de que Caddy saque certificado de Let's Encrypt.
-- El LB hace el health check sobre `/api/health`.
-- El `docker-compose.lb.yml` expone la web en el puerto 3000 de la interfaz local
-  (`127.0.0.1:3000`) o de una interfaz privada, para que solo el LB pueda llegar.
-
-Si usas esta opción, salta directamente a la sección **5B**.
+- **Cloudflare Pages** sirve la web. Cloudflare gestiona HTTPS, dominio y caché.
+- **Railway** corre el worker Python a partir del `Dockerfile` existente.
+- **Supabase** sigue siendo el centro: web y worker solo se hablan por la BD.
 
 ---
 
-## 2. Docker en un minuto (los 3 conceptos)
+## 2. Preparar la web para Cloudflare Pages
+
+Ya está hecho en el repositorio:
+
+- `web/package.json` incluye `@cloudflare/next-on-pages` y `wrangler` como devDependencies.
+- `web/wrangler.toml` con la configuración base.
+- `web/next.config.mjs` sin `output: 'standalone'` (no es necesario en Pages).
+- `.node-version` para que Cloudflare Pages use Node 20.
+- `.gitignore` ignora `.vercel/` y `.wrangler/`.
+
+Los scripts importantes son:
+
+```bash
+cd web
+npm install          # instala next-on-pages y wrangler
+npm run pages:build  # genera .vercel/output/static
+npm run pages:deploy # sube a Cloudflare Pages (uso local)
+```
+
+### Pasos en Cloudflare Pages
+
+1. Entra en [dash.cloudflare.com](https://dash.cloudflare.com) → **Pages**.
+2. **Create a project** → **Connect to Git** → selecciona tu repo.
+3. Configura el build:
+   - **Project name**: `gas-web`
+   - **Production branch**: `main`
+   - **Root directory**: `web`
+   - **Build command**: `npm run pages:build`
+   - **Build output directory**: `.vercel/output/static`
+4. En **Environment variables**, añade:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+5. Guarda y despliega.
+
+> **Importante:** las variables `NEXT_PUBLIC_*` deben estar presentes **en build time**, no solo en runtime. Cloudflare Pages las inyecta durante el build.
+
+---
+
+## 3. Desplegar el worker en Railway
+
+Railway lee directamente el `worker/Dockerfile`.
+
+### Pasos
+
+1. Entra en [railway.app](https://railway.app) y crea un proyecto.
+2. **Deploy from GitHub repo** y selecciona tu repo.
+3. Railway detectará el `railway.json` en la raíz o el `Dockerfile`. Si no, selecciona **Dockerfile** y apunta a `worker/Dockerfile`.
+4. Añade las variables de entorno del worker (ver `worker/.env.example`):
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `APIFY_TOKEN`
+   - `APIFY_EMPLOYEES_ACTOR_ID`
+   - `OPENROUTER_API_KEY`
+   - `HARVEST_API_KEY`
+   - etc.
+5. Railway arrancará el contenedor y ejecutará `python -m worker.main`.
+
+### Escala
+
+Railway cobra por uso de CPU/memoria. El worker de GAS consume poco cuando está en espera.
+
+---
+
+## 4. DNS y dominio
+
+Si tu dominio ya está usando Cloudflare (nameservers de Cloudflare):
+
+1. En Cloudflare Pages, ve a **Custom domains** y añade `fknscraper.gascoolcalling.com`.
+2. Cloudflare te dará un registro CNAME. Lo añades en el DNS de Cloudflare.
+3. Listo.
+
+Si tu dominio está en Namecheap pero solo quieres apuntar el subdominio:
+
+1. En Namecheap avanzado DNS, crea un registro **CNAME**:
+   ```
+   fknscraper   →   CNAME   →   <tu-proyecto>.pages.dev
+   ```
+2. Espera a que propague.
+
+---
+
+## 5. Checklist Cloudflare + Railway
+
+- [ ] Repo conectado a Cloudflare Pages.
+- [ ] Build command: `npm run pages:build`.
+- [ ] Build output: `.vercel/output/static`.
+- [ ] Variables `NEXT_PUBLIC_SUPABASE_*` añadidas en Cloudflare Pages.
+- [ ] Worker desplegado en Railway con todas las variables de `worker/.env`.
+- [ ] Logs de Railway muestran el bucle de polling sin errores.
+- [ ] Dominio apunta a Cloudflare Pages y carga con HTTPS.
+
+---
+
+# Alternativa: Docker en VPS
+
 
 - **Imagen**: una "foto" congelada de tu app con todo lo que necesita para correr (el
   código, Node o Python, las librerías). Se construye una vez con un `Dockerfile` (la

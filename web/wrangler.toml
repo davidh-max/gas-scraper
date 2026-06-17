@@ -1,0 +1,8 @@
+name = "gas-web"
+compatibility_date = "2025-06-16"
+pages_build_output_dir = ".vercel/output/static"
+
+[vars]
+# Estas variables se pueden sobreescribir en Cloudflare Pages > Settings > Environment variables.
+NEXT_PUBLIC_SUPABASE_URL = "https://ftpgnimyjxlomjfdqfqy.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_xxxxxxxxxxxxxxxxxxxx"

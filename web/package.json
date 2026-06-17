@@ -5,9 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cf": "next-on-pages",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pages:build": "next-on-pages",
+    "pages:preview": "wrangler pages dev .vercel/output/static --compatibility-date=2025-06-16",
+    "pages:deploy": "wrangler pages deploy .vercel/output/static"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -17,11 +21,13 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.12",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.35",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "wrangler": "^3.107.2"
   }
 }
