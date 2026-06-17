@@ -48,12 +48,14 @@ function computeErrorRate(rows: Pick<ContactRow, "feedback">[]): ErrorRate {
 
 export class SupabaseSource implements DataSource {
   async getClients(): Promise<ClientRow[]> {
-    const { data } = await createClient().from("clients").select("*").order("name");
+    const supabase = await createClient();
+    const { data } = await supabase.from("clients").select("*").order("name");
     return (data ?? []).map(normalizeClient);
   }
 
   async getActiveClients(): Promise<ClientRow[]> {
-    const { data } = await createClient()
+    const supabase = await createClient();
+    const { data } = await supabase
       .from("clients")
       .select("*")
       .eq("active", true)
@@ -62,17 +64,20 @@ export class SupabaseSource implements DataSource {
   }
 
   async getClient(id: string): Promise<ClientRow | null> {
-    const { data } = await createClient().from("clients").select("*").eq("id", id).single();
+    const supabase = await createClient();
+    const { data } = await supabase.from("clients").select("*").eq("id", id).single();
     return data ? normalizeClient(data) : null;
   }
 
   async getAreas(): Promise<AreaProfileRow[]> {
-    const { data } = await createClient().from("area_profiles").select("*");
+    const supabase = await createClient();
+    const { data } = await supabase.from("area_profiles").select("*");
     return (data ?? []) as AreaProfileRow[];
   }
 
   async getActiveAreas(): Promise<AreaProfileRow[]> {
-    const { data } = await createClient()
+    const supabase = await createClient();
+    const { data } = await supabase
       .from("area_profiles")
       .select("*")
       .eq("active", true)
@@ -81,7 +86,8 @@ export class SupabaseSource implements DataSource {
   }
 
   async getJobs(): Promise<JobRow[]> {
-    const { data } = await createClient()
+    const supabase = await createClient();
+    const { data } = await supabase
       .from("jobs")
       .select("*")
       .order("created_at", { ascending: false });
@@ -89,7 +95,8 @@ export class SupabaseSource implements DataSource {
   }
 
   async getJobsByClient(clientId: string): Promise<JobRow[]> {
-    const { data } = await createClient()
+    const supabase = await createClient();
+    const { data } = await supabase
       .from("jobs")
       .select("*")
       .eq("client_id", clientId)
@@ -149,7 +156,8 @@ export class SupabaseSource implements DataSource {
   }
 
   async getReviewPendingCount(): Promise<number> {
-    const { count } = await createClient()
+    const supabase = await createClient();
+    const { count } = await supabase
       .from("contacts")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending");
@@ -220,7 +228,8 @@ export class SupabaseSource implements DataSource {
   }
 
   async updateClientSettings(id: string, settings: ClientSettings): Promise<void> {
-    const { error } = await createClient().from("clients").update({ settings }).eq("id", id);
+    const supabase = await createClient();
+    const { error } = await supabase.from("clients").update({ settings }).eq("id", id);
     if (error) throw new Error(error.message);
   }
 
@@ -267,7 +276,8 @@ export class SupabaseSource implements DataSource {
     // Universo = TODOS los contactos entregados (por defecto válidos); solo restan los
     // marcados 'no_valido'. No filtramos por feedback_at: si lo hiciéramos, el primer
     // contacto marcado como erróneo daría 100%.
-    const { data } = await createClient().from("contacts").select("feedback");
+    const supabase = await createClient();
+    const { data } = await supabase.from("contacts").select("feedback");
     return computeErrorRate((data ?? []) as Pick<ContactRow, "feedback">[]);
   }
 
@@ -311,7 +321,8 @@ export class SupabaseSource implements DataSource {
   }
 
   async updateContactStatus(id: string, status: ContactStatus): Promise<void> {
-    const { error } = await createClient().from("contacts").update({ status }).eq("id", id);
+    const supabase = await createClient();
+    const { error } = await supabase.from("contacts").update({ status }).eq("id", id);
     if (error) throw new Error(error.message);
   }
 }
