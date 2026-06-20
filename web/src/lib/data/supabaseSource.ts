@@ -18,6 +18,7 @@ import type {
   ContactStatus,
   FeedbackReason,
   JobRow,
+  ProfileRow,
 } from "@/types/db";
 import {
   reviewReason,
@@ -26,6 +27,7 @@ import {
   type ErrorRate,
   type JobContact,
   type JobContext,
+  type JobListItem,
   type NoResultCompany,
   type ReviewContact,
 } from "./source";
@@ -44,6 +46,21 @@ function computeErrorRate(rows: Pick<ContactRow, "feedback">[]): ErrorRate {
     invalid,
     rate: total > 0 ? Math.round((invalid / total) * 1000) / 10 : 0,
   };
+}
+
+function withCreator(
+  jobs: JobRow[],
+  profiles: Pick<ProfileRow, "id" | "full_name" | "email">[],
+): JobListItem[] {
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  return jobs.map((j) => {
+    const creator = j.created_by ? byId.get(j.created_by) : null;
+    return {
+      ...j,
+      creator_name: creator?.full_name ?? creator?.email?.split("@")[0] ?? null,
+      creator_email: creator?.email ?? null,
+    };
+  });
 }
 
 export class SupabaseSource implements DataSource {
@@ -85,23 +102,51 @@ export class SupabaseSource implements DataSource {
     return (data ?? []) as AreaProfileRow[];
   }
 
-  async getJobs(): Promise<JobRow[]> {
+  async getJobs(): Promise<JobListItem[]> {
     const supabase = await createClient();
     const { data } = await supabase
       .from("jobs")
       .select("*")
       .order("created_at", { ascending: false });
-    return (data ?? []) as JobRow[];
+    const jobs = (data ?? []) as JobRow[];
+    const creatorIds = [...new Set(jobs.map((j) => j.created_by).filter(Boolean))];
+    let profiles: Pick<ProfileRow, "id" | "full_name" | "email">[] = [];
+    if (creatorIds.length > 0) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", creatorIds);
+      profiles = ((profileData ?? []) as ProfileRow[]).map((p) => ({
+        id: p.id,
+        full_name: p.full_name,
+        email: p.email,
+      }));
+    }
+    return withCreator(jobs, profiles);
   }
 
-  async getJobsByClient(clientId: string): Promise<JobRow[]> {
+  async getJobsByClient(clientId: string): Promise<JobListItem[]> {
     const supabase = await createClient();
     const { data } = await supabase
       .from("jobs")
       .select("*")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
-    return (data ?? []) as JobRow[];
+    const jobs = (data ?? []) as JobRow[];
+    const creatorIds = [...new Set(jobs.map((j) => j.created_by).filter(Boolean))];
+    let profiles: Pick<ProfileRow, "id" | "full_name" | "email">[] = [];
+    if (creatorIds.length > 0) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", creatorIds);
+      profiles = ((profileData ?? []) as ProfileRow[]).map((p) => ({
+        id: p.id,
+        full_name: p.full_name,
+        email: p.email,
+      }));
+    }
+    return withCreator(jobs, profiles);
   }
 
   async getJobContext(id: string): Promise<JobContext | null> {
@@ -110,19 +155,28 @@ export class SupabaseSource implements DataSource {
     if (!jobData) return null;
     const job = jobData as JobRow;
 
-    const [clientRes, areaRes, backupRes] = await Promise.all([
+    const [clientRes, areaRes, backupRes, creatorRes] = await Promise.all([
       supabase.from("clients").select("*").eq("id", job.client_id).single(),
       supabase.from("area_profiles").select("*").eq("id", job.area_profile_id).single(),
       job.backup_area_profile_id
         ? supabase.from("area_profiles").select("*").eq("id", job.backup_area_profile_id).single()
         : Promise.resolve({ data: null }),
+      job.created_by
+        ? supabase.from("profiles").select("full_name, email").eq("id", job.created_by).single()
+        : Promise.resolve({ data: null }),
     ]);
+
+    const creatorName =
+      (creatorRes.data as { full_name: string | null; email: string | null } | null)?.full_name ??
+      (creatorRes.data as { full_name: string | null; email: string | null } | null)?.email?.split("@")[0] ??
+      null;
 
     return {
       job,
       client: clientRes.data ? normalizeClient(clientRes.data) : null,
       area: (areaRes.data as AreaProfileRow | null) ?? null,
       backupArea: (backupRes.data as AreaProfileRow | null) ?? null,
+      creatorName,
     };
   }
 
@@ -132,6 +186,7 @@ export class SupabaseSource implements DataSource {
       .from("contacts")
       .select("*")
       .eq("status", "pending")
+      .or("classification.eq.revisar,verify_flag.not.is.null")
       .order("classification")
       .order("created_at")
       .limit(limit);
@@ -160,7 +215,8 @@ export class SupabaseSource implements DataSource {
     const { count } = await supabase
       .from("contacts")
       .select("*", { count: "exact", head: true })
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .or("classification.eq.revisar,verify_flag.not.is.null");
     return count ?? 0;
   }
 
@@ -177,6 +233,7 @@ export class SupabaseSource implements DataSource {
         client_id: input.clientId,
         area_profile_id: input.areaId,
         backup_area_profile_id: input.backupAreaId,
+        name: input.name ?? null,
         use_fixtures: input.useFixtures,
         reception_only: input.receptionOnly,
         status: "queued",
@@ -323,6 +380,21 @@ export class SupabaseSource implements DataSource {
   async updateContactStatus(id: string, status: ContactStatus): Promise<void> {
     const supabase = await createClient();
     const { error } = await supabase.from("contacts").update({ status }).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async getProfiles(): Promise<ProfileRow[]> {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false });
+    return (data ?? []) as ProfileRow[];
+  }
+
+  async updateProfileName(id: string, fullName: string): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", id);
     if (error) throw new Error(error.message);
   }
 }

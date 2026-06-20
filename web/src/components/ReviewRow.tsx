@@ -85,16 +85,27 @@ export function ReviewRow({ contact }: { contact: ReviewContact }) {
               href={contact.linkedin_url}
               target="_blank"
               rel="noreferrer"
+              title={contact.linkedin_url}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
-                font: "var(--weight-semibold) 12px/1.3 var(--font-sans)",
-                color: "var(--text-link)",
+                maxWidth: "100%",
                 marginTop: 2,
               }}
             >
-              <i data-lucide="external-link" style={{ width: 12, height: 12 }} /> {li}
+              <i data-lucide="external-link" style={{ width: 12, height: 12, flexShrink: 0, color: "var(--text-link)" }} />
+              <span
+                style={{
+                  font: "var(--weight-semibold) 12px/1.3 var(--font-sans)",
+                  color: "var(--text-link)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {li}
+              </span>
             </a>
           )}
         </div>

@@ -1,7 +1,5 @@
-// Interfaz única de datos que consume la web. Dos implementaciones la cumplen:
-//   - SupabaseSource (envuelve lo que ya existía, sin tocar el contrato de BD)
-//   - MockSource     (datos en memoria para el modo MockData)
-// Un selector central (./index) decide cuál usar según la cookie de modo.
+// Interfaz única de datos que consume la web. Usa SupabaseSource como única
+// implementación.
 
 import type {
   AreaProfileRow,
@@ -12,6 +10,7 @@ import type {
   ContactStatus,
   FeedbackReason,
   JobRow,
+  ProfileRow,
 } from "@/types/db";
 import type { ParsedCompany } from "@/lib/parseCompanies";
 
@@ -33,6 +32,12 @@ export interface JobContext {
   client: ClientRow | null;
   area: AreaProfileRow | null;
   backupArea: AreaProfileRow | null;
+  creatorName: string | null;
+}
+
+export interface JobListItem extends JobRow {
+  creator_name: string | null;
+  creator_email: string | null;
 }
 
 export interface ErrorRate {
@@ -51,6 +56,7 @@ export interface CreateJobInput {
   clientId: string;
   areaId: string;
   backupAreaId: string | null;
+  name: string | null;
   useFixtures: boolean;
   receptionOnly: boolean;
   companies: ParsedCompany[];
@@ -63,8 +69,8 @@ export interface DataSource {
   getClient(id: string): Promise<ClientRow | null>;
   getAreas(): Promise<AreaProfileRow[]>;
   getActiveAreas(): Promise<AreaProfileRow[]>;
-  getJobs(): Promise<JobRow[]>;
-  getJobsByClient(clientId: string): Promise<JobRow[]>;
+  getJobs(): Promise<JobListItem[]>;
+  getJobsByClient(clientId: string): Promise<JobListItem[]>;
   getJobContext(id: string): Promise<JobContext | null>;
   getReviewContacts(limit?: number): Promise<ReviewContact[]>;
   getReviewPendingCount(): Promise<number>;
@@ -72,6 +78,7 @@ export interface DataSource {
   getJobNoResultCompanies(jobId: string): Promise<NoResultCompany[]>;
   getGlobalErrorRate(): Promise<ErrorRate>;
   getClientErrorRate(clientId: string): Promise<ErrorRate>;
+  getProfiles(): Promise<ProfileRow[]>;
 
   // Escrituras (devuelven datos crudos; el redirect/revalidate vive en actions)
   createJob(input: CreateJobInput): Promise<string>;
@@ -85,6 +92,7 @@ export interface DataSource {
     reason?: FeedbackReason | null,
     note?: string | null,
   ): Promise<void>;
+  updateProfileName(id: string, fullName: string): Promise<void>;
 }
 
 // Motivo legible de revisión a partir de las señales reales del contacto.
