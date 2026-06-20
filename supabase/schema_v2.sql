@@ -127,6 +127,7 @@ create table if not exists public.jobs (
   client_id              uuid not null references public.clients(id) on delete cascade,
   area_profile_id        uuid not null references public.area_profiles(id),
   backup_area_profile_id uuid references public.area_profiles(id),
+  name                   text,                                   -- nombre descriptivo del job (opcional)
   status                 job_status not null default 'queued',
   use_fixtures           boolean not null default false,
   reception_only         boolean not null default false,  -- true: worker solo recibe empresas y para
@@ -328,6 +329,7 @@ do $$ begin
   create policy "auth read clients"       on public.clients       for select to authenticated using (true);
   create policy "auth rw clients"          on public.clients       for all    to authenticated using (true) with check (true);
   create policy "auth read area_profiles" on public.area_profiles for select to authenticated using (true);
+  create policy "auth read profiles"      on public.profiles      for select to authenticated using (true);
   create policy "auth rw jobs"            on public.jobs          for all    to authenticated using (true) with check (true);
   create policy "auth rw companies"       on public.companies     for all    to authenticated using (true) with check (true);
   create policy "auth rw contacts"        on public.contacts      for all    to authenticated using (true) with check (true);

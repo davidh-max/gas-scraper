@@ -123,6 +123,7 @@ class Job(BaseModel):
     client_id: str
     area_profile_id: str
     backup_area_profile_id: str | None = None
+    name: str | None = None
     status: JobStatus = JobStatus.queued
     use_fixtures: bool = False
     reception_only: bool = False

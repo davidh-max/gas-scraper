@@ -99,6 +99,7 @@ export interface JobRow {
   client_id: string;
   area_profile_id: string;
   backup_area_profile_id: string | null;
+  name: string | null;
   status: JobStatus;
   use_fixtures: boolean;
   reception_only: boolean;
@@ -217,6 +218,7 @@ export type JobInsert = {
   client_id: string;
   area_profile_id: string;
   backup_area_profile_id?: string | null;
+  name?: string | null;
   status?: JobStatus;
   use_fixtures?: boolean;
   reception_only?: boolean;
