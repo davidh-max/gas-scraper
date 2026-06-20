@@ -1,13 +1,11 @@
 import { AppShell } from "@/components/AppShell";
 import { getDataSource } from "@/lib/data";
-import { getMode } from "@/lib/data/mode";
 
 // Shell de aplicación (sidebar + cabecera) para todas las rutas autenticadas.
 // `login` queda fuera de este grupo, así que no lleva shell.
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const mode = await getMode();
   const data = await getDataSource();
   const [reviewPending, clients] = await Promise.all([
     data.getReviewPendingCount(),
@@ -16,28 +14,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   let userName = "Equipo GAS";
   let userMeta = "Sesión activa";
-  if (mode === "mock") {
-    userName = "Dani Torres";
-    userMeta = "Ops · demo";
-  } else {
-    try {
-      const { createClient } = await import("@/lib/supabaseServer");
-      const supabase = await createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user?.email) {
-        userName = user.email.split("@")[0] ?? user.email;
-        userMeta = user.email;
-      }
-    } catch {
-      // sin sesión legible: se quedan los valores por defecto
+  try {
+    const { createClient } = await import("@/lib/supabaseServer");
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user?.email) {
+      userName = user.email.split("@")[0] ?? user.email;
+      userMeta = user.email;
     }
+  } catch {
+    // sin sesión legible: se quedan los valores por defecto
   }
 
   return (
     <AppShell
-      mode={mode}
       userName={userName}
       userMeta={userMeta}
       reviewPending={reviewPending}

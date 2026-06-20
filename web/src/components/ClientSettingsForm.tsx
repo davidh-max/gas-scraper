@@ -8,7 +8,7 @@ import { updateClientSettings } from "@/lib/actions";
 import type { ClientRow } from "@/types/db";
 
 // Edición de la personalización del cliente (logo, color, web, sector).
-// Persiste vía la server action updateClientSettings (Supabase o mock según modo).
+// Persiste vía la server action updateClientSettings (Supabase).
 export function ClientSettingsForm({ client }: { client: ClientRow }) {
   const s = client.settings ?? {};
   const [logoUrl, setLogoUrl] = useState(s.logo_url ?? "");

@@ -4,16 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { getDataSource } from "@/lib/data";
-import { getMode, setModeCookie, type Mode } from "@/lib/data/mode";
 import type { ParsedCompany } from "@/lib/parseCompanies";
 import type { ClientSettings, ContactFeedback, ContactStatus, FeedbackReason } from "@/types/db";
 
 // Crea un job (estado `queued`) e inserta sus empresas. El worker lo recoge.
-// Delega en la capa de datos (Supabase o mock según el modo).
 export async function createJob(formData: FormData): Promise<void> {
   const clientId = String(formData.get("client_id") ?? "");
   const areaId = String(formData.get("area_profile_id") ?? "");
   const backupRaw = String(formData.get("backup_area_profile_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim() || null;
   const useFixtures = formData.get("use_fixtures") === "on";
   const receptionOnly = false; // ya resuelve URLs de LinkedIn en el worker
   const companiesJson = String(formData.get("companies_json") ?? "[]");
@@ -33,6 +32,7 @@ export async function createJob(formData: FormData): Promise<void> {
     clientId,
     areaId,
     backupAreaId: backupRaw || null,
+    name,
     useFixtures,
     receptionOnly,
     companies,
@@ -103,18 +103,12 @@ export async function updateContactStatus(
   revalidatePath("/review");
 }
 
-// Cambia el modo de la interfaz (mock ↔ normal) escribiendo la cookie.
-// El cliente fuerza una recarga dura a "/" para aplicarlo limpio.
-export async function setMode(mode: Mode): Promise<void> {
-  await setModeCookie(mode);
+export async function updateProfileName(id: string, fullName: string): Promise<void> {
+  await (await getDataSource()).updateProfileName(id, fullName.trim());
+  revalidatePath("/settings");
 }
 
 export async function signOut(): Promise<void> {
-  // En modo mock no hay sesión Supabase: volver a normal y pedir login.
-  if (await getMode() === "mock") {
-    await setModeCookie("normal");
-    redirect("/login");
-  }
   const { createClient } = await import("@/lib/supabaseServer");
   const supabase = await createClient();
   await supabase.auth.signOut();

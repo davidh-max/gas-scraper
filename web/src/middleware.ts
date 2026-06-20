@@ -3,20 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
-// Protege las rutas: sin sesión → /login. Dos atajos antes de hablar con
-// Supabase para que la interfaz funcione sin backend:
-//   - cookie gas_mode=mock  → modo MockData: se salta el login por completo.
-//   - sin variables de Supabase → no hay sesión posible: todo va a /login
-//     (donde está el acceso al modo demo). Así nada peta por falta de config.
+// Protege las rutas: sin sesión → /login.
+// Si no hay configuración de Supabase, redirige siempre a /login.
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isLogin = pathname.startsWith("/login");
   const isAuthCallback = pathname.startsWith("/auth/callback");
-
-  // Modo MockData: navegación libre sin sesión.
-  if (request.cookies.get("gas_mode")?.value === "mock") {
-    return NextResponse.next();
-  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

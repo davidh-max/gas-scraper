@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button, Checkbox, Input } from "@/ds";
-import { setMode } from "@/lib/actions";
 import { createClient } from "@/lib/supabaseClient";
 
 function errorMessage(searchParams: ReturnType<typeof useSearchParams>): string | null {
@@ -30,7 +29,6 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(errorMessage(searchParams));
   const [loading, setLoading] = useState(false);
   const [googlePending, startGoogle] = useTransition();
-  const [demoPending, startDemo] = useTransition();
 
   async function signInWithGoogle() {
     startGoogle(async () => {
@@ -62,17 +60,10 @@ export default function LoginForm() {
       router.push("/");
       router.refresh();
     } catch {
-      setError("No se pudo conectar con Supabase. Configura las claves o usa el modo demo.");
+      setError("No se pudo conectar con Supabase. Revisa la configuración.");
     } finally {
       setLoading(false);
     }
-  }
-
-  function enterDemo() {
-    startDemo(async () => {
-      await setMode("mock");
-      window.location.href = "/";
-    });
   }
 
   return (
@@ -177,7 +168,7 @@ export default function LoginForm() {
             {error && (
               <p style={{ margin: 0, font: "var(--weight-medium) 13px/1.4 var(--font-sans)", color: "var(--color-danger)" }}>{error}</p>
             )}
-            <Button variant="primary" size="lg" icon="flame" fullWidth type="submit" disabled={loading || googlePending || demoPending}>
+            <Button variant="primary" size="lg" icon="flame" fullWidth type="submit" disabled={loading || googlePending}>
               {loading ? "Entrando…" : "Entrar en flowstate"}
             </Button>
           </form>
@@ -188,7 +179,7 @@ export default function LoginForm() {
             fullWidth
             type="button"
             onClick={signInWithGoogle}
-            disabled={googlePending || demoPending}
+            disabled={googlePending}
             style={{ marginTop: 12 }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width={20} height={20} style={{ display: "block", flexShrink: 0 }}>
@@ -198,18 +189,6 @@ export default function LoginForm() {
               <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
             </svg>
             {googlePending ? "Conectando con Google…" : "Continuar con Google"}
-          </Button>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0" }}>
-            <span style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
-            <span style={{ font: "var(--weight-bold) 10px/1 var(--font-tech)", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-              o
-            </span>
-            <span style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
-          </div>
-
-          <Button variant="ghost" size="lg" icon="flask-conical" fullWidth type="button" onClick={enterDemo} disabled={demoPending}>
-            {demoPending ? "Abriendo demo…" : "Explorar en modo MockData"}
           </Button>
 
           <div

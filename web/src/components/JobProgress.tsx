@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabaseClient";
 import { jobProgressPct } from "@/lib/dashboard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { JOB_STATUS_FLOW, type JobRow } from "@/types/db";
-import type { Mode } from "@/lib/data/mode";
 
 const TERMINAL = new Set(["done", "error", "cancelled"]);
 
@@ -67,24 +66,40 @@ function Counter({
   );
 }
 
+function creatorInitials(name: string | null): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const a = parts[0]?.charAt(0) ?? "";
+  const b = parts[1]?.charAt(0) ?? "";
+  return (a + b).toUpperCase() || name.charAt(0).toUpperCase();
+}
+
+function jobDisplayName(job: JobRow): string {
+  if (job.name?.trim()) return job.name.trim();
+  const date = new Date(job.created_at).toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "short",
+  });
+  return `Lote ${date}`;
+}
+
 export function JobProgress({
   initialJob,
   clientName,
   areaName,
   backupName,
-  mode,
+  creatorName,
 }: {
   initialJob: JobRow;
   clientName: string;
   areaName: string;
   backupName: string | null;
-  mode: Mode;
+  creatorName: string | null;
 }) {
   const [job, setJob] = useState<JobRow>(initialJob);
   const router = useRouter();
 
   useEffect(() => {
-    if (mode !== "normal") return; // en mock no se hace polling
     if (TERMINAL.has(job.status)) return;
     const supabase = createClient();
     const timer = setInterval(async () => {
@@ -96,7 +111,7 @@ export function JobProgress({
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [job.id, job.status, mode, router]);
+  }, [job.id, job.status, router]);
 
   const idx = Math.max(0, JOB_STATUS_FLOW.indexOf(job.status));
   const isError = job.status === "error";
@@ -131,18 +146,50 @@ export function JobProgress({
           <i data-lucide={isError ? "alert-triangle" : "loader"} style={{ width: 23, height: 23 }} />
         </span>
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ font: "var(--weight-bold) 11px/1 var(--font-tech)", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-              {clientName}
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <StatusBadge status={job.status} progress={pct} />
+            {creatorName && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: "var(--neutral-100)",
+                  color: "var(--text-secondary)",
+                  font: "var(--weight-bold) 11px/1 var(--font-tech)",
+                }}
+                title={`Creado por ${creatorName}`}
+              >
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    background: "var(--neutral-300)",
+                    color: "#fff",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    font: "var(--weight-bold) 8px/1 var(--font-tech)",
+                  }}
+                >
+                  {creatorInitials(creatorName)}
+                </span>
+                {creatorName}
+              </span>
+            )}
           </div>
           <h2 style={{ margin: "6px 0 0", font: "var(--weight-bold) 24px/1 var(--font-display)", textTransform: "uppercase", color: "var(--ink)" }}>
-            {areaName}
-            {backupName && (
-              <span style={{ color: "var(--text-muted)", fontSize: 15, fontWeight: 600 }}> · respaldo {backupName}</span>
-            )}
+            {jobDisplayName(job)}
           </h2>
+          <div style={{ font: "var(--weight-medium) 12px/1.3 var(--font-sans)", color: "var(--text-secondary)", marginTop: 4 }}>
+            {clientName} · {areaName}
+            {backupName && (
+              <span style={{ color: "var(--text-muted)", fontWeight: 600 }}> · respaldo {backupName}</span>
+            )}
+          </div>
         </div>
         <div style={{ marginLeft: "auto", textAlign: "right", flexShrink: 0 }}>
           <div style={{ font: "var(--weight-bold) 11px/1 var(--font-tech)", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-muted)" }}>
@@ -304,9 +351,7 @@ export function JobProgress({
         <i data-lucide="info" style={{ width: 16, height: 16, color: "var(--cyan-500)" }} />
         {TERMINAL.has(job.status)
           ? "Lote finalizado."
-          : mode === "normal"
-            ? "Puedes cerrar esta ventana — el lote sigue en segundo plano. Se actualiza cada 3 s."
-            : "Vista de demostración — el progreso es estático en modo MockData."}
+          : "Puedes cerrar esta ventana — el lote sigue en segundo plano. Se actualiza cada 3 s."}
       </div>
     </div>
   );

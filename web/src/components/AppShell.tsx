@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
-import { Avatar, Button, Switch } from "@/ds";
-import { setMode, signOut } from "@/lib/actions";
-import type { Mode } from "@/lib/data/mode";
+import { Avatar, Button } from "@/ds";
+import { signOut } from "@/lib/actions";
+import { DEFAULT_BRANDING, loadBranding, type AppBranding } from "@/lib/appBranding";
 
 interface NavEntry {
   href: string;
@@ -65,7 +65,6 @@ function SidebarLink({ entry, active }: { entry: NavEntry; active: boolean }) {
 }
 
 export interface AppShellProps {
-  mode: Mode;
   userName: string;
   userMeta: string;
   reviewPending: number;
@@ -75,7 +74,6 @@ export interface AppShellProps {
 }
 
 export function AppShell({
-  mode,
   userName,
   userMeta,
   reviewPending,
@@ -85,25 +83,19 @@ export function AppShell({
 }: AppShellProps) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [logoutPending, startLogout] = useTransition();
-  const isMock = mode === "mock";
+  const [branding, setBranding] = useState<AppBranding>(DEFAULT_BRANDING);
+
+  useEffect(() => {
+    setBranding(loadBranding());
+  }, []);
 
   const nav: NavEntry[] = [
     { href: "/", icon: "layout-dashboard", label: "Panel", match: (p) => p === "/" || p.startsWith("/jobs") },
     { href: "/review", icon: "inbox", label: "Revisar", badge: reviewPending, match: (p) => p.startsWith("/review") },
     { href: "/clients", icon: "building-2", label: "Clientes", match: (p) => p.startsWith("/clients") },
   ];
-
-  function onToggleMode(e: React.ChangeEvent<HTMLInputElement>) {
-    const next: Mode = e.target.checked ? "mock" : "normal";
-    startTransition(async () => {
-      await setMode(next);
-      // Recarga dura: aplica la cookie en todas partes y resetea estado cliente.
-      window.location.href = "/";
-    });
-  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--surface-page)" }}>
@@ -128,14 +120,23 @@ export function AppShell({
           href="/"
           style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 6px 22px", color: "#fff" }}
         >
-          <Image
-            src="/gas-mark.png"
-            alt="GAS"
-            width={42}
-            height={28}
-            priority
-            style={{ height: 26, width: "auto" }}
-          />
+          {branding.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={branding.logoUrl}
+              alt="GAS"
+              style={{ height: 26, width: "auto", objectFit: "contain" }}
+            />
+          ) : (
+            <Image
+              src="/gas-mark.png"
+              alt="GAS"
+              width={42}
+              height={28}
+              priority
+              style={{ height: 26, width: "auto" }}
+            />
+          )}
           <span
             style={{
               font: "var(--weight-extra) 21px/1 var(--font-display)",
@@ -143,7 +144,7 @@ export function AppShell({
               textTransform: "uppercase",
             }}
           >
-            Scraper
+            {branding.appName}
           </span>
         </Link>
 
@@ -154,41 +155,6 @@ export function AppShell({
         </nav>
 
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Toggle de modo MockData */}
-          <div
-            style={{
-              background: isMock ? "rgba(227,6,19,0.12)" : "rgba(255,255,255,0.05)",
-              border: `1px solid ${isMock ? "rgba(227,6,19,0.45)" : "var(--border-inverse)"}`,
-              borderRadius: "var(--radius-md)",
-              padding: "12px 14px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    font: "var(--weight-bold) 10px/1 var(--font-tech)",
-                    letterSpacing: ".12em",
-                    textTransform: "uppercase",
-                    color: isMock ? "var(--red-400)" : "var(--neon-cyan)",
-                  }}
-                >
-                  {isMock ? "Modo MockData" : "Modo normal"}
-                </div>
-                <div
-                  style={{
-                    font: "var(--weight-medium) 11px/1.3 var(--font-sans)",
-                    color: "var(--neutral-400)",
-                    marginTop: 4,
-                  }}
-                >
-                  {isMock ? "datos de demostración" : "datos reales (Supabase)"}
-                </div>
-              </div>
-              <Switch checked={isMock} onChange={onToggleMode} disabled={pending} aria-label="Activar modo MockData" />
-            </div>
-          </div>
-
           {/* Widget flowstate */}
           <div
             style={{
@@ -220,7 +186,7 @@ export function AppShell({
             </div>
           </div>
 
-          {/* Usuario + salir */}
+          {/* Usuario + ajustes + salir */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 4px" }}>
             <Avatar name={userName} size="sm" />
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -238,13 +204,33 @@ export function AppShell({
                 {userMeta}
               </div>
             </div>
+            <Link
+              href="/settings"
+              className="gas-settings-btn"
+              aria-label="Ajustes"
+              title="Ajustes"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 38,
+                height: 38,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: "var(--neutral-400)",
+                cursor: "pointer",
+              }}
+            >
+              <i data-lucide="settings" style={{ width: 18, height: 18 }} />
+            </Link>
             <button
               type="button"
               className="gas-logout-btn"
               onClick={() => setLogoutOpen(true)}
               disabled={logoutPending}
-              aria-label={isMock ? "Salir del modo demo" : "Cerrar sesión"}
-              title={isMock ? "Salir del modo demo" : "Cerrar sesión"}
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -333,25 +319,6 @@ export function AppShell({
           </div>
         </header>
 
-        {isMock && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 10,
-              padding: "10px 26px",
-              background: "var(--red-50)",
-              borderBottom: "1px solid var(--red-100)",
-              color: "var(--red-700)",
-              font: "var(--weight-semibold) 13px/1.3 var(--font-sans)",
-            }}
-          >
-            <i data-lucide="flask-conical" style={{ width: 16, height: 16, flexShrink: 0 }} />
-            Modo MockData activo — datos de demostración. Las acciones no tocan Supabase y se reinician al recargar.
-          </div>
-        )}
-
         <main style={{ flex: 1, minWidth: 0, padding: "26px 28px" }}>{children}</main>
       </div>
 
@@ -389,12 +356,10 @@ export function AppShell({
                 color: "var(--ink)",
               }}
             >
-              {isMock ? "Salir del modo demo" : "Cerrar sesión"}
+              Cerrar sesión
             </div>
             <div style={{ font: "var(--weight-medium) 14px/1.5 var(--font-sans)", color: "var(--text-secondary)" }}>
-              {isMock
-                ? "Volverás a la pantalla de login y los datos de demostración se desactivarán."
-                : "¿Seguro que quieres cerrar sesión?"}
+              ¿Seguro que quieres cerrar sesión?
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <Button variant="secondary" onClick={() => setLogoutOpen(false)} disabled={logoutPending}>
@@ -406,7 +371,7 @@ export function AppShell({
                 disabled={logoutPending}
                 style={{ background: "var(--color-danger)", borderColor: "var(--color-danger)" }}
               >
-                {logoutPending ? "Saliendo…" : isMock ? "Salir del demo" : "Cerrar sesión"}
+                {logoutPending ? "Saliendo…" : "Cerrar sesión"}
               </Button>
             </div>
           </div>
