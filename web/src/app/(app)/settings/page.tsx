@@ -5,6 +5,7 @@ import { getDataSource } from "@/lib/data";
 import { createClient } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
