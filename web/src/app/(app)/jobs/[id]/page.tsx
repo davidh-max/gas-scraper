@@ -4,19 +4,17 @@ import { notFound } from "next/navigation";
 import { JobProgress } from "@/components/JobProgress";
 import { ResultsView } from "@/components/ResultsView";
 import { getDataSource } from "@/lib/data";
-import { getMode } from "@/lib/data/mode";
 
 export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const mode = await getMode();
   const data = await getDataSource();
   const ctx = await data.getJobContext(id);
   if (!ctx) notFound();
 
-  const { job, client, area, backupArea } = ctx;
+  const { job, client, area, backupArea, creatorName } = ctx;
   const clientName = client?.name ?? "—";
   const areaName = area?.name ?? "—";
 
@@ -47,6 +45,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           job={job}
           clientName={clientName}
           areaName={areaName}
+          creatorName={creatorName}
           contacts={contacts}
           noResults={noResults}
         />
@@ -56,7 +55,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           clientName={clientName}
           areaName={areaName}
           backupName={backupArea?.name ?? null}
-          mode={mode}
+          creatorName={creatorName}
         />
       )}
     </div>

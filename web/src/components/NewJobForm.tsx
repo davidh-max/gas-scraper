@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 
-import { Button, Select, Switch } from "@/ds";
+import { Button, Input, Select, Switch } from "@/ds";
 import { createJob } from "@/lib/actions";
 import { estimateCostUsd } from "@/lib/cost";
 import { parseCompanies } from "@/lib/parseCompanies";
@@ -238,6 +238,15 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
                 Si no encuentra el área principal, busca el área de respaldo antes de marcar <b>Sin resultado</b>.
               </span>
             </div>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <Input
+              name="name"
+              label="Nombre del lote (opcional)"
+              placeholder="p. ej. Vodafone IT · junio 2026"
+              icon="tag"
+            />
           </div>
 
           <div style={{ marginTop: 28 }}>

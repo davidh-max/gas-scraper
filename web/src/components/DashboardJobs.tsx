@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { StatusBadge } from "@/components/StatusBadge";
-import { clientInitials } from "@/lib/dashboard";
 import { isProcessing, jobProgressPct } from "@/lib/dashboard";
-import type { ClientRow, JobRow } from "@/types/db";
+import type { ClientRow } from "@/types/db";
+import type { JobListItem } from "@/lib/data";
+import { ClientAvatar } from "./ClientAvatar";
 
-const GRID = "1.5fr 0.95fr 1.35fr 1.2fr 64px 52px 60px 64px 34px";
+const GRID = "2fr 0.65fr 0.9fr 1.25fr 0.95fr 0.85fr 64px 52px 60px 64px 34px";
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -17,21 +18,38 @@ function fmtDate(iso: string): string {
     .replace(",", " ·");
 }
 
+function jobDisplayName(job: JobListItem): string {
+  if (job.name?.trim()) return job.name.trim();
+  const date = new Date(job.created_at).toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "short",
+  });
+  return `Lote ${date}`;
+}
+
+function creatorInitials(name: string | null): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const a = parts[0]?.charAt(0) ?? "";
+  const b = parts[1]?.charAt(0) ?? "";
+  return (a + b).toUpperCase() || name.charAt(0).toUpperCase();
+}
+
 export function DashboardJobs({
   jobs,
   clients,
   areaNames,
 }: {
-  jobs: JobRow[];
+  jobs: JobListItem[];
   clients: ClientRow[];
   areaNames: Record<string, string>;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<string>("all");
 
-  const clientName = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const c of clients) m[c.id] = c.name;
+  const clientById = useMemo(() => {
+    const m: Record<string, ClientRow> = {};
+    for (const c of clients) m[c.id] = c;
     return m;
   }, [clients]);
 
@@ -110,10 +128,12 @@ export function DashboardJobs({
             color: "var(--text-muted)",
           }}
         >
+          <div>Lote</div>
           <div>Cliente</div>
           <div>Creado</div>
           <div>Área buscada</div>
           <div>Estado</div>
+          <div>Creador</div>
           <div style={{ textAlign: "right" }}>Empr.</div>
           <div style={{ textAlign: "right", color: "var(--green-500)" }}>OK</div>
           <div style={{ textAlign: "right", color: "var(--amber-500)" }}>Rev.</div>
@@ -129,6 +149,10 @@ export function DashboardJobs({
           visible.map((job) => {
             const showCounts = job.status === "done" || isProcessing(job.status);
             const backupName = job.backup_area_profile_id ? areaNames[job.backup_area_profile_id] : null;
+            const client = clientById[job.client_id];
+            const clientName = client?.name ?? "—";
+            const displayName = jobDisplayName(job);
+
             return (
               <div
                 key={job.id}
@@ -144,14 +168,68 @@ export function DashboardJobs({
                   cursor: "pointer",
                 }}
               >
-                <div style={{ font: "var(--weight-semibold) 14px/1.2 var(--font-sans)", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {clientName[job.client_id] ?? "—"}
+                {/* Lote (nombre + cliente logo) */}
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      font: "var(--weight-semibold) 14px/1.2 var(--font-sans)",
+                      color: "var(--ink)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {displayName}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+                    <ClientAvatar
+                      name={clientName}
+                      logoUrl={client?.settings?.logo_url}
+                      color={client?.settings?.brand_color}
+                      size={18}
+                      radius={4}
+                    />
+                    <span
+                      style={{
+                        font: "var(--weight-medium) 11px/1 var(--font-sans)",
+                        color: "var(--text-muted)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {clientName}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Cliente logo */}
+                <div>
+                  <ClientAvatar
+                    name={clientName}
+                    logoUrl={client?.settings?.logo_url}
+                    color={client?.settings?.brand_color}
+                    size={32}
+                    radius={8}
+                  />
+                </div>
+
+                {/* Creado */}
                 <div style={{ font: "var(--weight-medium) 13px/1.2 var(--font-sans)", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
                   {fmtDate(job.created_at)}
                 </div>
+
+                {/* Área */}
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ font: "var(--weight-medium) 13px/1.2 var(--font-sans)", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div
+                    style={{
+                      font: "var(--weight-medium) 13px/1.2 var(--font-sans)",
+                      color: "var(--text-primary)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
                     {areaNames[job.area_profile_id] ?? "—"}
                   </div>
                   {backupName && (
@@ -160,9 +238,45 @@ export function DashboardJobs({
                     </div>
                   )}
                 </div>
+
+                {/* Estado */}
                 <div>
                   <StatusBadge status={job.status} progress={isProcessing(job.status) ? jobProgressPct(job) : undefined} />
                 </div>
+
+                {/* Creador */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: "var(--neutral-100)",
+                      color: "var(--text-secondary)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      font: "var(--weight-bold) 10px/1 var(--font-tech)",
+                      flexShrink: 0,
+                    }}
+                    title={job.creator_email ?? undefined}
+                  >
+                    {creatorInitials(job.creator_name ?? job.creator_email)}
+                  </span>
+                  <span
+                    style={{
+                      font: "var(--weight-medium) 12px/1.2 var(--font-sans)",
+                      color: "var(--text-secondary)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                    title={job.creator_email ?? undefined}
+                  >
+                    {job.creator_name ?? job.creator_email?.split("@")[0] ?? "—"}
+                  </span>
+                </div>
+
                 <div style={{ textAlign: "right", font: "var(--weight-semibold) 14px/1 var(--font-tech)", color: "var(--text-primary)" }}>
                   {job.total_companies}
                 </div>

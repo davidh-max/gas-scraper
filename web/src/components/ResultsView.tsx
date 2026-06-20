@@ -67,16 +67,27 @@ function Block({
   );
 }
 
+function jobDisplayName(job: JobRow): string {
+  if (job.name?.trim()) return job.name.trim();
+  const date = new Date(job.created_at).toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "short",
+  });
+  return `Lote ${date}`;
+}
+
 export function ResultsView({
   job,
   clientName,
   areaName,
+  creatorName,
   contacts,
   noResults,
 }: {
   job: JobRow;
   clientName: string;
   areaName: string;
+  creatorName: string | null;
   contacts: JobContact[];
   noResults: NoResultCompany[];
 }) {
@@ -112,10 +123,11 @@ export function ResultsView({
         </span>
         <div>
           <h2 style={{ margin: 0, font: "var(--weight-bold) 26px/1 var(--font-display)", textTransform: "uppercase", color: "var(--ink)" }}>
-            {clientName} · {areaName}
+            {jobDisplayName(job)}
           </h2>
           <div style={{ font: "var(--weight-medium) 13px/1 var(--font-sans)", color: "var(--text-secondary)", marginTop: 5 }}>
-            Lote #{job.id.slice(0, 8)} · {total} empresas · {job.decisor_count} decisores listos
+            {clientName} · {areaName} · Lote #{job.id.slice(0, 8)}
+            {creatorName ? ` · creado por ${creatorName}` : ""} · {total} empresas · {job.decisor_count} decisores listos
           </div>
         </div>
       </div>
