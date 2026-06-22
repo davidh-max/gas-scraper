@@ -84,11 +84,21 @@ class ApifyClient:
         return self.run_actor_sync(self.company_url_finder_actor_id, run_input, omit="", timeout=timeout)
 
     def validate_company_url_finder(self) -> bool:
-        """Valida saldo/permisos con una llamada mínima al actor de resolución."""
+        """Sanity-check del actor de resolución antes de gastar en el lote (regla #8).
+
+        Devuelve False SOLO ante una señal clara de cuenta inválida: error 4xx del
+        actor (sin saldo, plan free, actor no alquilado) o 0 items en la consulta de
+        prueba. Un timeout/cold-start o un fallo de red NO es señal de cuenta muerta
+        —el actor tarda en arrancar—; en ese caso devolvemos True para no bloquear el
+        lote (la resolución real surfaceará cualquier problema persistente). El
+        timeout es generoso a propósito: estos Actors tienen arranque en frío.
+        """
         try:
-            items = self.run_company_url_finder(["Amadeus IT Group"], timeout=30.0)
+            items = self.run_company_url_finder(["Amadeus IT Group"], timeout=120.0)
         except ApifyError:
-            return False
+            return False  # 4xx del actor → cuenta/plan/permisos
+        except httpx.HTTPError:
+            return True  # timeout/red: inconcluso, no bloquear el lote
         return len(items) > 0
 
     def run_employees(self, run_input: dict[str, Any]) -> list[dict[str, Any]]:
