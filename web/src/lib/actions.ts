@@ -2,12 +2,97 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import path from "path";
 
 import { getDataSource } from "@/lib/data";
 import type { ParsedCompany } from "@/lib/parseCompanies";
 import type { ClientSettings, ContactFeedback, ContactStatus, FeedbackReason } from "@/types/db";
+import { createClient } from "@/lib/supabaseServer";
 
-// Crea un job (estado `queued`) e inserta sus empresas. El worker lo recoge.
+/**
+ * Ruta al directorio del worker Python. Asume que `web/` y `worker/` son
+ * hermanos en la raíz del repo (estructura actual del monorepo).
+ */
+function getWorkerDir(): string {
+  return path.resolve(process.cwd(), "..", "worker");
+}
+
+const WORKER_PYTHON_CMDS = [
+  // Primero el virtualenv del worker, si existe (despliegue local/monorepo).
+  path.join(getWorkerDir(), ".venv", "bin", "python3"),
+  path.join(getWorkerDir(), ".venv", "bin", "python"),
+  // Fallbacks del sistema.
+  "python3",
+  "python",
+];
+
+async function logJobEvent(
+  jobId: string,
+  toStatus: string,
+  message: string,
+  payload: Record<string, unknown> = {},
+) {
+  const supabase = await createClient();
+  await supabase.from("job_events").insert({
+    job_id: jobId,
+    to_status: toStatus,
+    message,
+    payload,
+  });
+}
+
+/**
+ * Intenta ejecutar el worker Python para un job concreto en background.
+ * En local/Node (next dev / next start) esto arranca el procesamiento
+ * inmediatamente. En entornos edge/sin `child_process` (p. ej. Cloudflare
+ * Pages) falla silenciosamente y el job permanece `queued` para el polling
+ * worker.
+ */
+async function spawnWorkerForJob(jobId: string, useFixtures: boolean): Promise<void> {
+  const workerDir = getWorkerDir();
+  const args = ["-m", "worker.main", "--job-id", jobId];
+  if (useFixtures) args.push("--use-fixtures");
+
+  let spawned = false;
+  let lastError: Error | null = null;
+
+  for (const cmd of WORKER_PYTHON_CMDS) {
+    try {
+      const { spawn } = await import("child_process");
+      const proc = spawn(cmd, args, {
+        cwd: workerDir,
+        detached: true,
+        stdio: "ignore",
+        env: { ...process.env },
+      });
+      proc.on("error", (err) => {
+        // eslint-disable-next-line no-console
+        console.error(`Worker spawn error (${cmd}):`, err);
+      });
+      proc.unref();
+      spawned = true;
+      break;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  if (spawned) {
+    await logJobEvent(jobId, "queued", "Worker auto-lanzado", {
+      worker_dir: workerDir,
+      use_fixtures: useFixtures,
+    });
+    return;
+  }
+
+  await logJobEvent(jobId, "queued", "No se pudo auto-lanzar el worker; esperando polling", {
+    worker_dir: workerDir,
+    use_fixtures: useFixtures,
+    error: lastError?.message ?? "unknown",
+  });
+}
+
+// Crea un job e inserta sus empresas. Luego intenta ejecutarlo automáticamente.
 export async function createJob(formData: FormData): Promise<void> {
   const clientId = String(formData.get("client_id") ?? "");
   const areaId = String(formData.get("area_profile_id") ?? "");
@@ -38,8 +123,34 @@ export async function createJob(formData: FormData): Promise<void> {
     companies,
   });
 
+  // Intenta arrancar el procesamiento en background. No bloquea el redirect.
+  await spawnWorkerForJob(jobId, useFixtures);
+
   revalidatePath("/");
   redirect(`/jobs/${jobId}`);
+}
+
+// Reencola un job parado (queued/error) y lo intenta ejecutar de nuevo.
+export async function retryJob(jobId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: job } = await supabase.from("jobs").select("*").eq("id", jobId).single();
+  if (!job) throw new Error("Job no encontrado.");
+  if (job.status !== "queued" && job.status !== "error") {
+    throw new Error(`No se puede reintentar un job en estado '${job.status}'.`);
+  }
+
+  const { error } = await supabase
+    .from("jobs")
+    .update({ status: "queued", error_message: null })
+    .eq("id", jobId);
+  if (error) throw new Error(error.message);
+
+  await logJobEvent(jobId, "queued", "Reintentado manualmente", { previous_status: job.status });
+
+  await spawnWorkerForJob(jobId, Boolean(job.use_fixtures));
+
+  revalidatePath(`/jobs/${jobId}`);
+  revalidatePath("/");
 }
 
 // Alta de cliente. Genera un slug único a partir del nombre.

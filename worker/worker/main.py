@@ -2,6 +2,7 @@
 
     python -m worker.main --use-fixtures        # procesa con fixtures (sin gastar Apify)
     python -m worker.main --once                # procesa un solo job y sale
+    python -m worker.main --job-id <uuid>       # procesa el job concreto (auto-run/retry)
     python -m worker.main                        # loop continuo (modo live)
 
 Frontera limpia: este módulo SOLO orquesta y persiste. La lógica vive en
@@ -46,18 +47,44 @@ def claim_next_job(sb: Any) -> Job | None:
     rows = res.data or []
     if not rows:
         return None
+    return _claim_job(sb, Job(**rows[0]))
+
+
+def claim_job_by_id(sb: Any, job_id: str) -> Job | None:
+    """Reclama un job concreto (`queued` o `error`) pasándolo a `resolving`.
+
+    Usado cuando el front lanza el worker para un job específico (auto-run o retry).
+    """
+    res = sb.table("jobs").select("*").eq("id", job_id).limit(1).execute()
+    rows = res.data or []
+    if not rows:
+        return None
     job = Job(**rows[0])
-    # toma el job: solo gana si sigue 'queued'
+    if job.status not in {JobStatus.queued, JobStatus.error}:
+        return None  # ya está en curso o terminado
+    return _claim_job(sb, job, expected_status=job.status.value)
+
+
+def _claim_job(sb: Any, job: Job, *, expected_status: str | None = None) -> Job | None:
+    """Atómico: actualiza el job a `resolving` solo si sigue en `expected_status`.
+
+    Si `expected_status` es None, se asume 'queued' (modo polling).
+    """
+    expected = expected_status or JobStatus.queued.value
     upd = (
         sb.table("jobs")
-        .update({"status": JobStatus.resolving.value})
+        .update({
+            "status": JobStatus.resolving.value,
+            "error_message": None,
+        })
         .eq("id", job.id)
-        .eq("status", "queued")
+        .eq("status", expected)
         .execute()
     )
     if not (upd.data or []):
-        return None  # otro worker lo reclamó
+        return None  # otro worker lo reclamó o cambió de estado
     job.status = JobStatus.resolving
+    job.error_message = None
     return job
 
 
@@ -287,6 +314,27 @@ def fail_job(sb: Any, job: Job, error: Exception) -> None:
 # --------------------------------------------------------------------------- loop
 
 
+def run_job_by_id(job_id: str, *, use_fixtures: bool) -> int:
+    """Procesa un job concreto por ID y sale. Usado para auto-run/retry desde la web."""
+    from .supabase_client import get_supabase
+
+    sb = get_supabase()
+    job = claim_job_by_id(sb, job_id)
+    if job is None:
+        print(f"No se pudo reclamar el job {job_id} (no existe o no está en queued/error).")
+        return 1
+
+    fx = use_fixtures or job.use_fixtures
+    print(f"Procesando job {job.id} (área={job.area_profile_id}, fixtures={fx})")
+    try:
+        process_job(sb, job, use_fixtures=use_fixtures)
+        print(f"Job {job.id} → done")
+    except Exception as exc:  # noqa: BLE001 - registrar y continuar
+        fail_job(sb, job, exc)
+        print(f"Job {job.id} → error: {exc}")
+    return 0
+
+
 def run_loop(*, use_fixtures: bool, once: bool) -> int:
     from .supabase_client import get_supabase
 
@@ -318,7 +366,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="worker.main", description="GAS worker loop")
     parser.add_argument("--use-fixtures", action="store_true", help="Procesa con fixtures locales")
     parser.add_argument("--once", action="store_true", help="Procesa un solo job y sale")
+    parser.add_argument("--job-id", type=str, default=None, help="Procesa el job concreto por ID y sale")
     args = parser.parse_args(argv)
+    if args.job_id:
+        return run_job_by_id(args.job_id, use_fixtures=args.use_fixtures)
     return run_loop(use_fixtures=args.use_fixtures, once=args.once)
 
 

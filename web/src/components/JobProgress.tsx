@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabaseClient";
 import { jobProgressPct } from "@/lib/dashboard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { JOB_STATUS_FLOW, type JobRow } from "@/types/db";
+import { retryJob } from "@/lib/actions";
+import { Button } from "@/ds";
 
 const TERMINAL = new Set(["done", "error", "cancelled"]);
 
@@ -97,7 +99,22 @@ export function JobProgress({
   creatorName: string | null;
 }) {
   const [job, setJob] = useState<JobRow>(initialJob);
+  const [retrying, setRetrying] = useState(false);
   const router = useRouter();
+
+  async function handleRetry() {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      await retryJob(job.id);
+      router.refresh();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("Retry failed:", e);
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   useEffect(() => {
     if (TERMINAL.has(job.status)) return;
@@ -340,7 +357,8 @@ export function JobProgress({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 9,
+          justifyContent: "space-between",
+          gap: 12,
           padding: "18px 32px",
           borderTop: "1px solid var(--border-subtle)",
           background: "var(--surface-page)",
@@ -348,10 +366,27 @@ export function JobProgress({
           color: "var(--text-secondary)",
         }}
       >
-        <i data-lucide="info" style={{ width: 16, height: 16, color: "var(--cyan-500)" }} />
-        {TERMINAL.has(job.status)
-          ? "Lote finalizado."
-          : "Puedes cerrar esta ventana — el lote sigue en segundo plano. Se actualiza cada 3 s."}
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <i data-lucide="info" style={{ width: 16, height: 16, color: "var(--cyan-500)" }} />
+          {job.status === "queued"
+            ? "Lanzando procesamiento…"
+            : job.status === "error"
+              ? "El lote falló. Puedes reintentarlo."
+              : TERMINAL.has(job.status)
+                ? "Lote finalizado."
+                : "Puedes cerrar esta ventana — el lote sigue en segundo plano. Se actualiza cada 3 s."}
+        </div>
+        {(job.status === "queued" || job.status === "error") && (
+          <Button
+            variant={job.status === "error" ? "primary" : "secondary"}
+            size="sm"
+            icon="refresh-cw"
+            onClick={handleRetry}
+            disabled={retrying}
+          >
+            {retrying ? "Reintentando…" : "Reintentar"}
+          </Button>
+        )}
       </div>
     </div>
   );

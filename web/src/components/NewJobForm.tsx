@@ -480,7 +480,7 @@ export function NewJobForm({ clients, areas }: { clients: ClientRow[]; areas: Ar
               {pending ? "Lanzando…" : "Lanzar lote"}
             </Button>
             <span style={{ textAlign: "center", font: "var(--weight-medium) 12px/1.4 var(--font-sans)", color: "var(--text-muted)" }}>
-              Entra en la cola y se procesa en segundo plano.
+              Se procesa automáticamente al crearlo.
             </span>
           </div>
         </aside>

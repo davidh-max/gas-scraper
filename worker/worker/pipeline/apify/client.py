@@ -49,13 +49,14 @@ class ApifyClient:
         run_input: dict[str, Any],
         *,
         omit: str = DATASET_OMIT,
+        timeout: float | None = None,
     ) -> list[dict[str, Any]]:
         """POST run-sync-get-dataset-items y devuelve los items del dataset."""
         url = (
             f"{APIFY_BASE}/acts/{actor_id}/"
             f"run-sync-get-dataset-items?token={self.token}&omit={omit}"
         )
-        client = self._http()
+        client = self._http(timeout=timeout)
         resp = client.post(url, json=run_input)
         if resp.status_code not in (200, 201):
             try:
@@ -70,6 +71,8 @@ class ApifyClient:
         self,
         queries: list[str],
         max_concurrency: int = 10,
+        *,
+        timeout: float | None = None,
     ) -> list[dict[str, Any]]:
         """Resuelve URLs de LinkedIn para una lista de nombres de empresa en UNA llamada."""
         if not queries:
@@ -78,12 +81,12 @@ class ApifyClient:
             "queries": "\n".join(queries),
             "maxConcurrency": max_concurrency,
         }
-        return self.run_actor_sync(self.company_url_finder_actor_id, run_input, omit="")
+        return self.run_actor_sync(self.company_url_finder_actor_id, run_input, omit="", timeout=timeout)
 
     def validate_company_url_finder(self) -> bool:
         """Valida saldo/permisos con una llamada mínima al actor de resolución."""
         try:
-            items = self.run_company_url_finder(["Amadeus IT Group"])
+            items = self.run_company_url_finder(["Amadeus IT Group"], timeout=30.0)
         except ApifyError:
             return False
         return len(items) > 0
@@ -98,9 +101,12 @@ class ApifyClient:
         self._assert_golden_rules(run_input)
         return self.run_actor_sync(self.employees_actor_id, run_input, omit=DATASET_OMIT)
 
-    def _http(self) -> httpx.Client:
+    def _http(self, *, timeout: float | None = None) -> httpx.Client:
         if self._http_cache is None:
             self._http_cache = httpx.Client(timeout=self.timeout)
+        if timeout is not None:
+            # httpx no permite cambiar timeout en cliente existente; creamos uno temporal.
+            return httpx.Client(timeout=timeout)
         return self._http_cache
 
     @staticmethod
