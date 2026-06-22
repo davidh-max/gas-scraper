@@ -1,8 +1,13 @@
 // Parser del textarea de empresas. Cada línea es una empresa. Acepta:
 //   - una URL de LinkedIn suelta
-//   - una razón social suelta
-//   - CSV por línea: raw_input, razon_social, cif, domain, linkedin_url
+//   - una razón social suelta (las comas se conservan: "Navantia, S.A., S.M.E")
+//   - varios campos por línea separados por ';' o TAB (no por coma):
+//       raw_input ; razon_social ; cif ; domain ; linkedin_url
 // Devuelve filas listas para insertar en `companies` (sin job_id).
+//
+// La coma NO se usa como separador a propósito: las formas jurídicas españolas
+// (S.A., S.L., S.M.E, S.L.U.) llevan comas internas y partirían el nombre. Para
+// pegar varias columnas usa TAB (copiar de Excel/Sheets ya lo hace) o ';'.
 
 export interface ParsedCompany {
   raw_input: string;
@@ -19,7 +24,7 @@ export function parseCompanies(text: string): ParsedCompany[] {
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
-    const cols = line.split(/[;,\t]/).map((c) => c.trim());
+    const cols = line.split(/[;\t]/).map((c) => c.trim());
     const [c0 = "", c1 = "", c2 = "", c3 = "", c4 = ""] = cols;
 
     if (cols.length === 1) {
