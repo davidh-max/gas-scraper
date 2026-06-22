@@ -2,29 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import path from "path";
 
 import { getDataSource } from "@/lib/data";
 import type { ParsedCompany } from "@/lib/parseCompanies";
 import type { ClientSettings, ContactFeedback, ContactStatus, FeedbackReason } from "@/types/db";
 import { createClient } from "@/lib/supabaseServer";
-
-/**
- * Ruta al directorio del worker Python. Asume que `web/` y `worker/` son
- * hermanos en la raíz del repo (estructura actual del monorepo).
- */
-function getWorkerDir(): string {
-  return path.resolve(process.cwd(), "..", "worker");
-}
-
-const WORKER_PYTHON_CMDS = [
-  // Primero el virtualenv del worker, si existe (despliegue local/monorepo).
-  path.join(getWorkerDir(), ".venv", "bin", "python3"),
-  path.join(getWorkerDir(), ".venv", "bin", "python"),
-  // Fallbacks del sistema.
-  "python3",
-  "python",
-];
 
 async function logJobEvent(
   jobId: string,
@@ -49,16 +31,30 @@ async function logJobEvent(
  * worker.
  */
 async function spawnWorkerForJob(jobId: string, useFixtures: boolean): Promise<void> {
-  const workerDir = getWorkerDir();
+  // `path` y `child_process` se importan dinámicamente para que no entren en el
+  // bundle (este módulo "use server" lo importan componentes de cliente). En
+  // entornos edge/sin estos módulos (p. ej. Cloudflare Pages) el import falla y
+  // el job queda `queued` para el polling worker.
+  const path = (await import(/* webpackIgnore: true */ "node:path")).default;
+  // `web/` y `worker/` son hermanos en la raíz del repo (monorepo).
+  const workerDir = path.resolve(process.cwd(), "..", "worker");
+  const pythonCmds = [
+    // Primero el virtualenv del worker, si existe (despliegue local/monorepo).
+    path.join(workerDir, ".venv", "bin", "python3"),
+    path.join(workerDir, ".venv", "bin", "python"),
+    // Fallbacks del sistema.
+    "python3",
+    "python",
+  ];
   const args = ["-m", "worker.main", "--job-id", jobId];
   if (useFixtures) args.push("--use-fixtures");
 
   let spawned = false;
   let lastError: Error | null = null;
 
-  for (const cmd of WORKER_PYTHON_CMDS) {
+  for (const cmd of pythonCmds) {
     try {
-      const { spawn } = await import("child_process");
+      const { spawn } = await import(/* webpackIgnore: true */ "node:child_process");
       const proc = spawn(cmd, args, {
         cwd: workerDir,
         detached: true,
