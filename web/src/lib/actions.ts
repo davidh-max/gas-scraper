@@ -31,61 +31,75 @@ async function logJobEvent(
  * worker.
  */
 async function spawnWorkerForJob(jobId: string, useFixtures: boolean): Promise<void> {
-  // `path` y `child_process` se importan dinámicamente para que no entren en el
-  // bundle (este módulo "use server" lo importan componentes de cliente). En
-  // entornos edge/sin estos módulos (p. ej. Cloudflare Pages) el import falla y
-  // el job queda `queued` para el polling worker.
-  const path = (await import(/* webpackIgnore: true */ "node:path")).default;
-  // `web/` y `worker/` son hermanos en la raíz del repo (monorepo).
-  const workerDir = path.resolve(process.cwd(), "..", "worker");
-  const pythonCmds = [
-    // Primero el virtualenv del worker, si existe (despliegue local/monorepo).
-    path.join(workerDir, ".venv", "bin", "python3"),
-    path.join(workerDir, ".venv", "bin", "python"),
-    // Fallbacks del sistema.
-    "python3",
-    "python",
-  ];
-  const args = ["-m", "worker.main", "--job-id", jobId];
-  if (useFixtures) args.push("--use-fixtures");
+  // IMPORTANTE: esta función NUNCA debe lanzar. Es best-effort y solo funciona en
+  // un runtime Node (next dev / next start en local, junto al worker). En edge/
+  // Cloudflare Pages no hay `node:child_process` ni filesystem del worker, así que
+  // los `import()` o `process.cwd()` fallan; en ese caso el job se queda `queued`
+  // y lo procesa el worker de polling. Todo va envuelto para que un fallo aquí no
+  // rompa la creación del job (si lanzara, el job quedaría creado pero la server
+  // action reventaría → "Server Components render error" y sin redirect).
+  try {
+    // `node:*` con webpackIgnore: imports en runtime, no se empaquetan (este módulo
+    // "use server" lo importan componentes de cliente). En edge esto lanza → catch.
+    const path = (await import(/* webpackIgnore: true */ "node:path")).default;
+    const { spawn } = await import(/* webpackIgnore: true */ "node:child_process");
+    // `web/` y `worker/` son hermanos en la raíz del repo (monorepo).
+    const workerDir = path.resolve(process.cwd(), "..", "worker");
+    const pythonCmds = [
+      // Primero el virtualenv del worker, si existe (despliegue local/monorepo).
+      path.join(workerDir, ".venv", "bin", "python3"),
+      path.join(workerDir, ".venv", "bin", "python"),
+      // Fallbacks del sistema.
+      "python3",
+      "python",
+    ];
+    const args = ["-m", "worker.main", "--job-id", jobId];
+    if (useFixtures) args.push("--use-fixtures");
 
-  let spawned = false;
-  let lastError: Error | null = null;
+    let spawned = false;
+    let lastError: Error | null = null;
+    for (const cmd of pythonCmds) {
+      try {
+        const proc = spawn(cmd, args, {
+          cwd: workerDir,
+          detached: true,
+          stdio: "ignore",
+          env: { ...process.env },
+        });
+        proc.on("error", (err) => {
+          // eslint-disable-next-line no-console
+          console.error(`Worker spawn error (${cmd}):`, err);
+        });
+        proc.unref();
+        spawned = true;
+        break;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+      }
+    }
 
-  for (const cmd of pythonCmds) {
+    await logJobEvent(
+      jobId,
+      "queued",
+      spawned ? "Worker auto-lanzado" : "No se pudo auto-lanzar el worker; esperando polling",
+      {
+        worker_dir: workerDir,
+        use_fixtures: useFixtures,
+        ...(spawned ? {} : { error: lastError?.message ?? "unknown" }),
+      },
+    );
+  } catch (err) {
+    // Entorno sin Node (edge/Cloudflare) u otro fallo inesperado: el job queda
+    // `queued` para el worker de polling. El log es best-effort y tampoco lanza.
     try {
-      const { spawn } = await import(/* webpackIgnore: true */ "node:child_process");
-      const proc = spawn(cmd, args, {
-        cwd: workerDir,
-        detached: true,
-        stdio: "ignore",
-        env: { ...process.env },
+      await logJobEvent(jobId, "queued", "Sin worker local (edge); esperando polling", {
+        use_fixtures: useFixtures,
+        error: err instanceof Error ? err.message : String(err),
       });
-      proc.on("error", (err) => {
-        // eslint-disable-next-line no-console
-        console.error(`Worker spawn error (${cmd}):`, err);
-      });
-      proc.unref();
-      spawned = true;
-      break;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+    } catch {
+      // ignorado: la creación del job no debe depender de poder registrar el evento
     }
   }
-
-  if (spawned) {
-    await logJobEvent(jobId, "queued", "Worker auto-lanzado", {
-      worker_dir: workerDir,
-      use_fixtures: useFixtures,
-    });
-    return;
-  }
-
-  await logJobEvent(jobId, "queued", "No se pudo auto-lanzar el worker; esperando polling", {
-    worker_dir: workerDir,
-    use_fixtures: useFixtures,
-    error: lastError?.message ?? "unknown",
-  });
 }
 
 // Crea un job e inserta sus empresas. Luego intenta ejecutarlo automáticamente.
